@@ -32,7 +32,7 @@ checkdepends=(
 )
 install=opentrackir.install
 
-_source_commit=${OPENTRACKIR_SOURCE_COMMIT:-45186c46ec94bc469ce17c3b2a0839b0881c4991}
+_source_commit=${OPENTRACKIR_SOURCE_COMMIT:-fe96d498c8e0805905ff83f05738063a6042e842}
 _source_url=${OPENTRACKIR_SOURCE_URL:-https://github.com/stedwick/OpenTrackIR.git}
 source=(
   "OpenTrackIR::git+${_source_url}#commit=${_source_commit}"

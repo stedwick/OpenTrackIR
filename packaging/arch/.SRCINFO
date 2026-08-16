@@ -23,7 +23,7 @@ pkgbase = opentrackir
 	depends = systemd-libs
 	provides = libopentrackir.so
 	options = !debug
-	source = OpenTrackIR::git+https://github.com/stedwick/OpenTrackIR.git#commit=fe96d498c8e0805905ff83f05738063a6042e842
+	source = OpenTrackIR::git+https://github.com/stedwick/OpenTrackIR.git#commit=1f3eef6f8255f116703657ef7a880d459be9f9f9
 	sha256sums = SKIP
 
 pkgname = opentrackir

@@ -35,16 +35,10 @@ _source_commit=f2aee5d3178cbb8dacc958ab475973832be88b85
 _source_url=${OPENTRACKIR_SOURCE_URL:-https://github.com/stedwick/OpenTrackIR.git}
 source=(
   "OpenTrackIR::git+${_source_url}#commit=${_source_commit}"
-  'opentrackir-soname.patch'
 )
 sha256sums=(
   'SKIP'
-  'dcb1c8c20e5452c8b9f2fa24dfde9266eb9f79f20a9508f9510e798c16a4a0c1'
 )
-
-prepare() {
-  git -C OpenTrackIR apply "$srcdir/opentrackir-soname.patch"
-}
 
 build() {
   cmake -S OpenTrackIR -B build-core \

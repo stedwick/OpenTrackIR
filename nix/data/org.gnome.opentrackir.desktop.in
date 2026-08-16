@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OpenTrackIR
+Exec=opentrackir
+Icon=org.gnome.opentrackir
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=GTK;
+StartupNotify=true
+DBusActivatable=true

@@ -1,0 +1,8 @@
+# List of source files containing translatable strings.
+# Please keep this file sorted alphabetically.
+data/org.gnome.opentrackir.desktop.in
+data/org.gnome.opentrackir.metainfo.xml.in
+data/org.gnome.opentrackir.gschema.xml
+src/main.c
+src/opentrackir-window.c
+src/opentrackir-window.ui

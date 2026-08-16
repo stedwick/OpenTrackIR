@@ -1,8 +1,8 @@
 # Maintainer: Philip Brocoum <https://github.com/stedwick>
 
 pkgname=opentrackir
-pkgver=0.2.3
-pkgrel=4
+pkgver=0.2.4
+pkgrel=1
 pkgdesc="Infrared head mouse for NaturalPoint TrackIR cameras"
 arch=('x86_64')
 url="https://github.com/stedwick/OpenTrackIR"

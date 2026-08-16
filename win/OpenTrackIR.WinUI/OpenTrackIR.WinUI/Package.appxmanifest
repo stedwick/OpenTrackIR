@@ -11,7 +11,7 @@
   <Identity
     Name="18087PhilPDX.OpenTrackIR"
     Publisher="CN=185BEB8C-D0D8-46C6-B4D6-0062E3C7275E"
-    Version="0.2.3.0" />
+    Version="0.2.4.0" />
 
   <mp:PhoneIdentity PhoneProductId="863751cb-14c1-4249-a2b4-477531327029" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

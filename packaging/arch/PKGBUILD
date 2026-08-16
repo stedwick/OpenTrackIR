@@ -2,7 +2,7 @@
 
 pkgname=opentrackir
 pkgver=0.2.3
-pkgrel=1
+pkgrel=2
 pkgdesc="Infrared head mouse for NaturalPoint TrackIR cameras"
 arch=('x86_64')
 url="https://github.com/stedwick/OpenTrackIR"
@@ -31,7 +31,7 @@ checkdepends=(
 )
 install=opentrackir.install
 
-_source_commit=9fe5c36fdaa651a74e8432a6dcde0d53531f816b
+_source_commit=f2aee5d3178cbb8dacc958ab475973832be88b85
 _source_url=${OPENTRACKIR_SOURCE_URL:-https://github.com/stedwick/OpenTrackIR.git}
 source=(
   "OpenTrackIR::git+${_source_url}#commit=${_source_commit}"

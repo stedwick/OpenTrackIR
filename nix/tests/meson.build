@@ -46,6 +46,16 @@ status_notifier_menu_test = executable(
 
 test('OpenTrackIR status notifier menu', status_notifier_menu_test)
 
+status_notifier_icon_test = executable(
+  'opentrackir-status-notifier-icon-test',
+  'test-status-notifier-icon.c',
+  '../src/opentrackir-status-notifier-icon.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('gio-2.0'),
+)
+
+test('OpenTrackIR status notifier icon', status_notifier_icon_test)
+
 uinput_policy_test = executable(
   'opentrackir-uinput-policy-test',
   'test-uinput-policy.c',

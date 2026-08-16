@@ -7,6 +7,7 @@ opentrackir_sources = [
   'opentrackir-session-controller.c',
   'opentrackir-session-state.c',
   'opentrackir-status-notifier.c',
+  'opentrackir-status-notifier-icon.c',
   'opentrackir-status-notifier-menu.c',
   'opentrackir-uinput-policy.c',
   'opentrackir-uinput-pointer.c',

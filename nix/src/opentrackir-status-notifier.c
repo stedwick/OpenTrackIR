@@ -1,8 +1,10 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
+#include <gtk/gtk.h>
 
 #include "opentrackir-status-notifier.h"
+#include "opentrackir-status-notifier-icon.h"
 #include "opentrackir-status-notifier-menu.h"
 
 #define STATUS_NOTIFIER_PATH "/StatusNotifierItem"
@@ -19,6 +21,7 @@ struct _OpentrackirStatusNotifier
 	GDBusConnection *connection;
 	GDBusNodeInfo *node_info;
 	GDBusNodeInfo *menu_node_info;
+	GVariant *icon_pixmaps;
 	guint object_registration_id;
 	guint menu_object_registration_id;
 	guint watcher_watch_id;
@@ -314,6 +317,32 @@ empty_pixmap_array (void)
 }
 
 static GVariant *
+load_icon_pixmaps (void)
+{
+	g_autoptr(GBytes) pixels = NULL;
+	g_autoptr(GdkTexture) texture = NULL;
+	g_autoptr(GdkTextureDownloader) downloader = NULL;
+	const guint8 *pixel_data;
+	gsize stride;
+
+	texture = gdk_texture_new_from_resource (
+		"/org/gnome/opentrackir/opentrackir-tray-icon.png");
+	if (texture == NULL)
+		return empty_pixmap_array ();
+
+	downloader = gdk_texture_downloader_new (texture);
+	gdk_texture_downloader_set_format (downloader, GDK_MEMORY_A8R8G8B8);
+	pixels = gdk_texture_downloader_download_bytes (downloader, &stride);
+	pixel_data = g_bytes_get_data (pixels, NULL);
+	return opentrackir_status_notifier_icon_pixmaps_new (
+		pixel_data,
+		gdk_texture_get_width (texture),
+		gdk_texture_get_height (texture),
+		stride
+	);
+}
+
+static GVariant *
 get_dbus_property (GDBusConnection  *connection,
                    const char       *sender,
                    const char       *object_path,
@@ -336,8 +365,9 @@ get_dbus_property (GDBusConnection  *connection,
 		return g_variant_new_int32 (0);
 	if (g_str_equal (property_name, "IconName"))
 		return g_variant_new_string ("org.gnome.opentrackir");
-	if (g_str_equal (property_name, "IconPixmap") ||
-	    g_str_equal (property_name, "OverlayIconPixmap") ||
+	if (g_str_equal (property_name, "IconPixmap"))
+		return g_variant_ref (self->icon_pixmaps);
+	if (g_str_equal (property_name, "OverlayIconPixmap") ||
 	    g_str_equal (property_name, "AttentionIconPixmap"))
 		return empty_pixmap_array ();
 	if (g_str_equal (property_name, "OverlayIconName") ||
@@ -354,7 +384,7 @@ get_dbus_property (GDBusConnection  *connection,
 		);
 		return g_variant_new ("(s@a(iiay)ss)",
 		                      "org.gnome.opentrackir",
-		                      empty_pixmap_array (),
+		                      g_variant_ref (self->icon_pixmaps),
 		                      "OpenTrackIR",
 		                      description);
 	}
@@ -493,6 +523,7 @@ opentrackir_status_notifier_dispose (GObject *object)
 	}
 	g_clear_pointer (&self->node_info, g_dbus_node_info_unref);
 	g_clear_pointer (&self->menu_node_info, g_dbus_node_info_unref);
+	g_clear_pointer (&self->icon_pixmaps, g_variant_unref);
 	g_clear_object (&self->connection);
 
 	G_OBJECT_CLASS (opentrackir_status_notifier_parent_class)->dispose (object);
@@ -542,6 +573,7 @@ opentrackir_status_notifier_new (GApplication *application)
 
 	self = g_object_new (OPENTRACKIR_TYPE_STATUS_NOTIFIER, NULL);
 	g_weak_ref_set (&self->application, application);
+	self->icon_pixmaps = g_variant_ref_sink (load_icon_pixmaps ());
 	self->connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
 	if (self->connection == NULL)
 		return self;

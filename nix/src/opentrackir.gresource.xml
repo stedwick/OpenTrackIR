@@ -3,5 +3,6 @@
   <gresource prefix="/org/gnome/opentrackir">
     <file preprocess="xml-stripblanks">opentrackir-window.ui</file>
     <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file alias="opentrackir-tray-icon.png">../data/icons/hicolor/32x32/apps/org.gnome.opentrackir.png</file>
   </gresource>
 </gresources>

@@ -3,8 +3,10 @@
 #include <glib/gi18n.h>
 
 #include "opentrackir-status-notifier.h"
+#include "opentrackir-status-notifier-menu.h"
 
 #define STATUS_NOTIFIER_PATH "/StatusNotifierItem"
+#define STATUS_NOTIFIER_MENU_PATH "/StatusNotifierItem/Menu"
 #define STATUS_NOTIFIER_INTERFACE "org.kde.StatusNotifierItem"
 #define STATUS_NOTIFIER_WATCHER "org.kde.StatusNotifierWatcher"
 #define STATUS_NOTIFIER_WATCHER_PATH "/StatusNotifierWatcher"
@@ -16,7 +18,9 @@ struct _OpentrackirStatusNotifier
 	GWeakRef application;
 	GDBusConnection *connection;
 	GDBusNodeInfo *node_info;
+	GDBusNodeInfo *menu_node_info;
 	guint object_registration_id;
+	guint menu_object_registration_id;
 	guint watcher_watch_id;
 	gboolean watcher_present;
 	gboolean available;
@@ -67,6 +71,34 @@ static const char introspection_xml[] =
 	" </interface>"
 	"</node>";
 
+static const char menu_introspection_xml[] =
+	"<node>"
+	" <interface name='com.canonical.dbusmenu'>"
+	"  <method name='GetLayout'>"
+	"   <arg type='i' direction='in'/><arg type='i' direction='in'/><arg type='as' direction='in'/>"
+	"   <arg type='u' direction='out'/><arg type='(ia{sv}av)' direction='out'/>"
+	"  </method>"
+	"  <method name='GetGroupProperties'>"
+	"   <arg type='ai' direction='in'/><arg type='as' direction='in'/>"
+	"   <arg type='a(ia{sv})' direction='out'/>"
+	"  </method>"
+	"  <method name='GetProperty'>"
+	"   <arg type='i' direction='in'/><arg type='s' direction='in'/><arg type='v' direction='out'/>"
+	"  </method>"
+	"  <method name='Event'>"
+	"   <arg type='i' direction='in'/><arg type='s' direction='in'/><arg type='v' direction='in'/><arg type='u' direction='in'/>"
+	"  </method>"
+	"  <method name='AboutToShow'>"
+	"   <arg type='i' direction='in'/><arg type='b' direction='out'/>"
+	"  </method>"
+	"  <property name='Version' type='u' access='read'/>"
+	"  <property name='Status' type='s' access='read'/>"
+	"  <signal name='ItemsPropertiesUpdated'><arg type='a(ia{sv})'/><arg type='a(ias)'/></signal>"
+	"  <signal name='LayoutUpdated'><arg type='u'/><arg type='i'/></signal>"
+	"  <signal name='ItemActivationRequested'><arg type='i'/><arg type='u'/></signal>"
+	" </interface>"
+	"</node>";
+
 static void
 set_available (OpentrackirStatusNotifier *self,
                gboolean                   available)
@@ -102,8 +134,7 @@ handle_method_call (GDBusConnection       *connection,
 {
 	OpentrackirStatusNotifier *self = user_data;
 
-	if (g_str_equal (method_name, "Activate") ||
-	    g_str_equal (method_name, "ContextMenu"))
+	if (g_str_equal (method_name, "Activate"))
 	{
 		activate_application_action (self, "show");
 	}
@@ -111,7 +142,8 @@ handle_method_call (GDBusConnection       *connection,
 	{
 		activate_application_action (self, "toggle-mouse");
 	}
-	else if (!g_str_equal (method_name, "Scroll"))
+	else if (!g_str_equal (method_name, "ContextMenu") &&
+	         !g_str_equal (method_name, "Scroll"))
 	{
 		g_dbus_method_invocation_return_error (invocation,
 		                                       G_DBUS_ERROR,
@@ -122,6 +154,154 @@ handle_method_call (GDBusConnection       *connection,
 	}
 
 	g_dbus_method_invocation_return_value (invocation, NULL);
+}
+
+static void
+add_menu_item_properties (GVariantBuilder *builder,
+                          gint             item_id)
+{
+	GVariant *properties;
+
+	properties = opentrackir_status_notifier_menu_item_properties (
+		item_id,
+		_("Show"),
+		_("Quit")
+	);
+	if (properties != NULL)
+		g_variant_builder_add (builder, "(i@a{sv})", item_id, properties);
+}
+
+static void
+handle_menu_method_call (GDBusConnection       *connection,
+                         const char            *sender,
+                         const char            *object_path,
+                         const char            *interface_name,
+                         const char            *method_name,
+                         GVariant              *parameters,
+                         GDBusMethodInvocation *invocation,
+                         gpointer               user_data)
+{
+	OpentrackirStatusNotifier *self = user_data;
+
+	if (g_str_equal (method_name, "GetLayout"))
+	{
+		g_autoptr(GVariant) property_names = NULL;
+		GVariant *layout;
+		gint parent_id;
+		gint recursion_depth;
+
+		g_variant_get (parameters, "(ii@as)", &parent_id, &recursion_depth, &property_names);
+		layout = opentrackir_status_notifier_menu_layout (
+			parent_id,
+			recursion_depth,
+			_("Show"),
+			_("Quit")
+		);
+		if (layout == NULL)
+		{
+			g_dbus_method_invocation_return_error (invocation,
+			                                       G_DBUS_ERROR,
+			                                       G_DBUS_ERROR_INVALID_ARGS,
+			                                       "Unknown menu item %d",
+			                                       parent_id);
+			return;
+		}
+		g_dbus_method_invocation_return_value (
+			invocation,
+			g_variant_new ("(u@(ia{sv}av))", 1u, layout)
+		);
+		return;
+	}
+
+	if (g_str_equal (method_name, "GetGroupProperties"))
+	{
+		g_autoptr(GVariant) ids = NULL;
+		g_autoptr(GVariant) property_names = NULL;
+		GVariantBuilder properties;
+		GVariantIter iter;
+		gint item_id;
+
+		g_variant_get (parameters, "(@ai@as)", &ids, &property_names);
+		g_variant_builder_init (&properties, G_VARIANT_TYPE ("a(ia{sv})"));
+		if (g_variant_n_children (ids) == 0)
+		{
+			add_menu_item_properties (&properties, OPENTRACKIR_STATUS_NOTIFIER_MENU_SHOW_ID);
+			add_menu_item_properties (&properties, OPENTRACKIR_STATUS_NOTIFIER_MENU_QUIT_ID);
+		}
+		else
+		{
+			g_variant_iter_init (&iter, ids);
+			while (g_variant_iter_next (&iter, "i", &item_id))
+				add_menu_item_properties (&properties, item_id);
+		}
+		g_dbus_method_invocation_return_value (
+			invocation,
+			g_variant_new ("(@a(ia{sv}))", g_variant_builder_end (&properties))
+		);
+		return;
+	}
+
+	if (g_str_equal (method_name, "GetProperty"))
+	{
+		GVariant *properties;
+		GVariant *value;
+		const char *property_name;
+		gint item_id;
+
+		g_variant_get (parameters, "(i&s)", &item_id, &property_name);
+		properties = opentrackir_status_notifier_menu_item_properties (
+			item_id,
+			_("Show"),
+			_("Quit")
+		);
+		value = properties != NULL
+			? g_variant_lookup_value (properties, property_name, NULL)
+			: NULL;
+		g_clear_pointer (&properties, g_variant_unref);
+		if (value == NULL)
+		{
+			g_dbus_method_invocation_return_error (invocation,
+			                                       G_DBUS_ERROR,
+			                                       G_DBUS_ERROR_INVALID_ARGS,
+			                                       "Unknown menu property %s for item %d",
+			                                       property_name,
+			                                       item_id);
+			return;
+		}
+		g_dbus_method_invocation_return_value (invocation, g_variant_new ("(v)", value));
+		g_variant_unref (value);
+		return;
+	}
+
+	if (g_str_equal (method_name, "Event"))
+	{
+		g_autoptr(GVariant) data = NULL;
+		OpentrackirStatusNotifierMenuAction action;
+		const char *event_id;
+		guint timestamp;
+		gint item_id;
+
+		g_variant_get (parameters, "(i&s@vu)", &item_id, &event_id, &data, &timestamp);
+		action = opentrackir_status_notifier_menu_action_for_event (item_id, event_id);
+		if (action == OPENTRACKIR_STATUS_NOTIFIER_MENU_ACTION_SHOW)
+			activate_application_action (self, "show");
+		else if (action == OPENTRACKIR_STATUS_NOTIFIER_MENU_ACTION_QUIT)
+			activate_application_action (self, "quit");
+		g_dbus_method_invocation_return_value (invocation, NULL);
+		return;
+	}
+
+	if (g_str_equal (method_name, "AboutToShow"))
+	{
+		g_dbus_method_invocation_return_value (invocation, g_variant_new ("(b)", FALSE));
+		return;
+	}
+
+	g_dbus_method_invocation_return_error (invocation,
+	                                       G_DBUS_ERROR,
+	                                       G_DBUS_ERROR_UNKNOWN_METHOD,
+	                                       "Unknown DBusMenu method %s",
+	                                       method_name);
 }
 
 static GVariant *
@@ -181,7 +361,7 @@ get_dbus_property (GDBusConnection  *connection,
 	if (g_str_equal (property_name, "ItemIsMenu"))
 		return g_variant_new_boolean (FALSE);
 	if (g_str_equal (property_name, "Menu"))
-		return g_variant_new_object_path ("/NO_DBUSMENU");
+		return g_variant_new_object_path (STATUS_NOTIFIER_MENU_PATH);
 
 	g_set_error (error,
 	             G_DBUS_ERROR,
@@ -194,6 +374,33 @@ get_dbus_property (GDBusConnection  *connection,
 static const GDBusInterfaceVTable interface_vtable = {
 	.method_call = handle_method_call,
 	.get_property = get_dbus_property,
+};
+
+static GVariant *
+get_menu_dbus_property (GDBusConnection  *connection,
+                        const char       *sender,
+                        const char       *object_path,
+                        const char       *interface_name,
+                        const char       *property_name,
+                        GError          **error,
+                        gpointer          user_data)
+{
+	if (g_str_equal (property_name, "Version"))
+		return g_variant_new_uint32 (3);
+	if (g_str_equal (property_name, "Status"))
+		return g_variant_new_string ("normal");
+
+	g_set_error (error,
+	             G_DBUS_ERROR,
+	             G_DBUS_ERROR_UNKNOWN_PROPERTY,
+	             "Unknown DBusMenu property %s",
+	             property_name);
+	return NULL;
+}
+
+static const GDBusInterfaceVTable menu_interface_vtable = {
+	.method_call = handle_menu_method_call,
+	.get_property = get_menu_dbus_property,
 };
 
 static void
@@ -278,7 +485,14 @@ opentrackir_status_notifier_dispose (GObject *object)
 		                                     self->object_registration_id);
 		self->object_registration_id = 0;
 	}
+	if (self->connection != NULL && self->menu_object_registration_id != 0)
+	{
+		g_dbus_connection_unregister_object (self->connection,
+		                                     self->menu_object_registration_id);
+		self->menu_object_registration_id = 0;
+	}
 	g_clear_pointer (&self->node_info, g_dbus_node_info_unref);
+	g_clear_pointer (&self->menu_node_info, g_dbus_node_info_unref);
 	g_clear_object (&self->connection);
 
 	G_OBJECT_CLASS (opentrackir_status_notifier_parent_class)->dispose (object);
@@ -345,6 +559,20 @@ opentrackir_status_notifier_new (GApplication *application)
 		                                   NULL,
 		                                   &error);
 	if (self->object_registration_id == 0)
+		return self;
+
+	self->menu_node_info = g_dbus_node_info_new_for_xml (menu_introspection_xml, &error);
+	if (self->menu_node_info == NULL)
+		return self;
+	self->menu_object_registration_id =
+		g_dbus_connection_register_object (self->connection,
+		                                   STATUS_NOTIFIER_MENU_PATH,
+		                                   self->menu_node_info->interfaces[0],
+		                                   &menu_interface_vtable,
+		                                   self,
+		                                   NULL,
+		                                   &error);
+	if (self->menu_object_registration_id == 0)
 		return self;
 
 	self->watcher_watch_id =

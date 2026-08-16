@@ -36,6 +36,16 @@ lifecycle_policy_test = executable(
 
 test('OpenTrackIR lifecycle policy', lifecycle_policy_test)
 
+status_notifier_menu_test = executable(
+  'opentrackir-status-notifier-menu-test',
+  'test-status-notifier-menu.c',
+  '../src/opentrackir-status-notifier-menu.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('gio-2.0'),
+)
+
+test('OpenTrackIR status notifier menu', status_notifier_menu_test)
+
 uinput_policy_test = executable(
   'opentrackir-uinput-policy-test',
   'test-uinput-policy.c',

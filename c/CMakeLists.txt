@@ -1,3 +1,5 @@
+include(GNUInstallDirs)
+
 add_library(opentrackir SHARED
   src/tir5_protocol.c
   src/tir5_frame.c
@@ -10,11 +12,34 @@ if(WIN32)
   set_target_properties(opentrackir PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 find_package(Threads REQUIRED)
-target_include_directories(opentrackir PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(opentrackir PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(opentrackir PUBLIC opentrackir_libusb Threads::Threads)
 if(UNIX AND NOT APPLE)
   target_link_libraries(opentrackir PUBLIC m)
 endif()
+
+configure_file(
+  opentrackir.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/opentrackir.pc
+  @ONLY
+)
+
+install(TARGETS opentrackir
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+  DIRECTORY include/opentrackir
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/opentrackir.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
 
 function(otir_copy_runtime_dlls target_name)
   if(WIN32)

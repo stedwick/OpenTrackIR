@@ -7,6 +7,7 @@ project('opentrackir', 'c',
 i18n = import('i18n')
 gnome = import('gnome')
 cc = meson.get_compiler('c')
+opentrackir_dep = dependency('opentrackir')
 
 config_h = configuration_data()
 config_h.set_quoted('PACKAGE_VERSION', meson.project_version())
@@ -84,6 +85,7 @@ add_project_arguments(project_c_args, language: 'c')
 
 subdir('data')
 subdir('src')
+subdir('tests')
 subdir('po')
 
 gnome.post_install(

@@ -7,6 +7,7 @@ opentrackir_sources = [
 opentrackir_deps = [
   dependency('gtk4'),
   dependency('libadwaita-1', version: '>= 1.4'),
+  opentrackir_dep,
 ]
 
 opentrackir_sources += gnome.compile_resources('opentrackir-resources',

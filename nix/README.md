@@ -67,4 +67,45 @@ Press Ctrl+C to stop the stream. If access is denied, reconnect the TrackIR afte
 installing the rule and confirm that the current login session is active before
 troubleshooting the application.
 
+## Virtual pointer access
+
+Mouse movement uses libevdev and the kernel's `/dev/uinput` interface. It works
+under X11 and Wayland without compositor-specific plugins, but access must be
+granted to the active desktop user. Never run OpenTrackIR as root.
+
+For a development or unpackaged install, install the supplied udev rule and
+modules-load configuration once:
+
+```sh
+sudo install -Dm644 \
+  nix/udev/70-opentrackir-uinput.rules \
+  /etc/udev/rules.d/70-opentrackir-uinput.rules
+sudo install -Dm644 \
+  nix/modules-load/opentrackir-uinput.conf \
+  /etc/modules-load.d/opentrackir-uinput.conf
+sudo modprobe uinput
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput
+```
+
+Verify access from the same desktop session that will run OpenTrackIR:
+
+```sh
+test -w /dev/uinput && echo "uinput is writable"
+getfacl /dev/uinput
+```
+
+If `/dev/uinput` is still missing or not writable, reboot so the module and rule
+are applied from startup. Alternatively, unload and reload `uinput` after the
+rule is installed, provided no other application is using it. Native packages
+should install these same files under `/usr/lib/udev/rules.d/` and
+`/usr/lib/modules-load.d/`.
+
+On a non-systemd distribution without `uaccess`, use a dedicated `uinput` group
+and a narrowly scoped rule granting that group mode `0660`, then add only the
+OpenTrackIR user to that group. Do not add users to the broad `input` group;
+that can expose physical keyboard and pointer events. Keep this permission
+separate from the TrackIR USB rule because camera access and virtual pointer
+output are independent.
+
 The Flatpak manifest is not yet wired to build the shared C library. Host builds are the supported development path while the initial Linux port is being implemented.

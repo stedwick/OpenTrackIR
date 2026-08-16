@@ -25,3 +25,24 @@ display_logic_test = executable(
 )
 
 test('OpenTrackIR display logic', display_logic_test)
+
+uinput_policy_test = executable(
+  'opentrackir-uinput-policy-test',
+  'test-uinput-policy.c',
+  '../src/opentrackir-uinput-policy.c',
+  include_directories: include_directories('../src'),
+  dependencies: [dependency('glib-2.0'), opentrackir_dep],
+)
+
+test('OpenTrackIR uinput policy', uinput_policy_test)
+
+uinput_pointer_test = executable(
+  'opentrackir-uinput-pointer-test',
+  'test-uinput-pointer.c',
+  '../src/opentrackir-uinput-pointer.c',
+  '../src/opentrackir-uinput-policy.c',
+  include_directories: include_directories('../src'),
+  dependencies: [dependency('glib-2.0'), dependency('libevdev', version: '>= 1.10'), opentrackir_dep],
+)
+
+test('OpenTrackIR uinput pointer', uinput_pointer_test)

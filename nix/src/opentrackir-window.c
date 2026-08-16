@@ -38,6 +38,7 @@ struct _OpentrackirWindow
 	GtkSpinButton *keep_awake_spin;
 	GtkSpinButton *timeout_spin;
 	AdwActionRow *phase_row;
+	AdwActionRow *mouse_status_row;
 	AdwActionRow *error_row;
 	AdwActionRow *frame_index_row;
 	AdwActionRow *frame_rate_row;
@@ -74,6 +75,7 @@ phase_label (OpentrackirSessionPhase phase)
 
 static void update_preview_policy (OpentrackirWindow *self);
 static void update_timeout_policy (OpentrackirWindow *self);
+static void apply_mouse_configuration (OpentrackirWindow *self);
 
 static gboolean
 window_is_visible_for_preview (OpentrackirWindow *self)
@@ -227,10 +229,80 @@ update_state (OpentrackirWindow *self)
 }
 
 static void
+update_mouse_state (OpentrackirWindow *self)
+{
+	const OpentrackirUinputState *state;
+	g_autofree char *ready_message = NULL;
+	const char *message;
+
+	state = opentrackir_session_controller_get_mouse_state (self->controller);
+	if (state->phase == OPENTRACKIR_UINPUT_PHASE_READY && state->event_frame_count > 0)
+	{
+		ready_message = g_strdup_printf (_("Virtual pointer ready · %" G_GUINT64_FORMAT " movement frames"),
+		                                 state->event_frame_count);
+		message = ready_message;
+	}
+	else
+	{
+		message = opentrackir_uinput_phase_message (state->phase);
+	}
+
+	adw_action_row_set_subtitle (self->mouse_status_row, message);
+}
+
+static void
 controller_state_changed (OpentrackirSessionController *controller,
                           OpentrackirWindow            *self)
 {
 	update_state (self);
+}
+
+static void
+controller_mouse_state_changed (OpentrackirSessionController *controller,
+                                OpentrackirWindow            *self)
+{
+	update_mouse_state (self);
+}
+
+static void
+apply_mouse_configuration (OpentrackirWindow *self)
+{
+	otir_trackir_mouse_tracker_config config;
+
+	config = opentrackir_build_mouse_tracker_config (
+		g_settings_get_double (self->settings, "mouse-speed"),
+		(double)g_settings_get_int (self->settings, "mouse-smoothing"),
+		g_settings_get_double (self->settings, "mouse-dead-zone"),
+		g_settings_get_boolean (self->settings, "avoid-mouse-jumps"),
+		(double)g_settings_get_int (self->settings, "mouse-jump-threshold-pixels"),
+		g_settings_get_boolean (self->settings, "horizontal-flip"),
+		g_settings_get_boolean (self->settings, "vertical-flip"),
+		g_settings_get_double (self->settings, "rotation-degrees")
+	);
+	opentrackir_session_controller_set_mouse_config (
+		self->controller,
+		g_settings_get_boolean (self->settings, "mouse-enabled"),
+		config
+	);
+}
+
+static gboolean
+is_mouse_setting (const char *key)
+{
+	return g_str_has_prefix (key, "mouse-") ||
+	       g_str_equal (key, "avoid-mouse-jumps") ||
+	       g_str_equal (key, "horizontal-flip") ||
+	       g_str_equal (key, "vertical-flip") ||
+	       g_str_equal (key, "rotation-degrees");
+}
+
+static void
+settings_changed (GSettings          *settings,
+                  const char         *key,
+                  OpentrackirWindow  *self)
+{
+	if (is_mouse_setting (key))
+		apply_mouse_configuration (self);
 }
 
 static gboolean
@@ -421,6 +493,7 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, keep_awake_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, phase_row);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, error_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, frame_index_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, frame_rate_row);
@@ -459,6 +532,15 @@ opentrackir_window_init (OpentrackirWindow *self)
 	                         G_CALLBACK (controller_state_changed),
 	                         self,
 	                         0);
+	g_signal_connect_object (self->controller,
+	                         "mouse-state-changed",
+	                         G_CALLBACK (controller_mouse_state_changed),
+	                         self,
+	                         0);
+	g_signal_connect (self->settings,
+	                  "changed",
+	                  G_CALLBACK (settings_changed),
+	                  self);
 	g_signal_connect (self->camera_switch,
 	                  "notify::active",
 	                  G_CALLBACK (camera_enabled_changed),
@@ -504,10 +586,12 @@ opentrackir_window_init (OpentrackirWindow *self)
 		self->controller,
 		(otir_tir5v3_centroid_mode)g_settings_get_int (self->settings, "centroid-mode")
 	);
+	apply_mouse_configuration (self);
 
 	if (gtk_switch_get_active (self->camera_switch))
 		opentrackir_session_controller_start (self->controller);
 
 	update_timeout_policy (self);
 	update_state (self);
+	update_mouse_state (self);
 }

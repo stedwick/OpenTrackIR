@@ -115,8 +115,8 @@ Use libevdev's uinput API as the Linux output layer. Define a small adapter cont
 Work:
 
 1. Add a Linux mouse-output object that creates one relative-pointer device with `libevdev_uinput_create_from_device()`.
-2. Enable only the events OpenTrackIR needs initially: `EV_REL`, `REL_X`, and `REL_Y`.
-3. Emit X/Y deltas followed by one `EV_SYN`/`SYN_REPORT` frame.
+2. Advertise `EV_KEY`/`BTN_LEFT` so udev/libinput classify the device as a mouse, but never emit button events. Enable `EV_REL`, `REL_X`, and `REL_Y` for motion.
+3. Emit only X/Y deltas followed by one `EV_SYN`/`SYN_REPORT` frame.
 4. Run tracker updates and libevdev writes on a dedicated Linux worker thread. The GTK thread only changes configuration and displays output status.
 5. Destroy the virtual device promptly when mouse movement is disabled or the application exits.
 6. Map missing device, permission denied, unsupported kernel support, and write failure to distinct adapter states with actionable messages.

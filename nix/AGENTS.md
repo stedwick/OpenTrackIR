@@ -11,6 +11,9 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `src/opentrackir-session-controller.c`: shared-session ownership, bounded telemetry polling, and runtime camera configuration.
 - `src/opentrackir-session-state.c`: pure normalization of shared C session snapshots for the Linux UI.
 - `src/opentrackir-display-logic.c`: pure preview, timeout, and telemetry formatting policy.
+- `src/opentrackir-uinput-policy.c`: pure error mapping, fractional delta dispatch, event selection, and mouse configuration mapping.
+- `src/opentrackir-uinput-pointer.c`: Linux libevdev/uinput relative-pointer adapter.
+- `src/opentrackir-mouse-worker.c`: dedicated tracker and pointer-output worker, isolated from GTK.
 - `src/opentrackir-window.c`: `AdwApplicationWindow` implementation and GTK template bindings.
 - `src/opentrackir-window.ui`: main window template and primary menu.
 - `src/shortcuts-dialog.ui`: keyboard-shortcut resource.
@@ -18,7 +21,7 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, and application icons.
 - `po/`: gettext source list and language catalog configuration.
 
-The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, and advanced controls. TrackIR USB access uses the repository udev rule. Linux mouse output and background/tray lifecycle are not connected yet. Some generated template metadata remains placeholder text.
+The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, and libevdev/uinput mouse output. TrackIR USB and uinput access use separate repository udev rules. Background/tray lifecycle is not connected yet. Some generated template metadata remains placeholder text.
 
 ## Linux-specific rules
 

@@ -170,7 +170,7 @@
                     <child>
                       <object class="AdwActionRow">
                         <property name="title" translatable="yes">Enable Mouse Movement</property>
-                        <property name="subtitle" translatable="yes">Saved now; uinput cursor output arrives in the next chunk.</property>
+                        <property name="subtitle" translatable="yes">Move the pointer through the Linux uinput device.</property>
                         <property name="activatable-widget">mouse_switch</property>
                         <child type="suffix">
                           <object class="GtkSwitch" id="mouse_switch">
@@ -188,6 +188,11 @@
                     <child>
                       <object class="AdwActionRow" id="phase_row">
                         <property name="title" translatable="yes">Status</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="mouse_status_row">
+                        <property name="title" translatable="yes">Mouse Output</property>
                       </object>
                     </child>
                     <child>

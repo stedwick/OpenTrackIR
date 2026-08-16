@@ -3,6 +3,7 @@
 #include <glib-object.h>
 
 #include "opentrackir-session-state.h"
+#include "opentrackir-uinput-policy.h"
 
 G_BEGIN_DECLS
 
@@ -12,6 +13,8 @@ G_DECLARE_FINAL_TYPE (OpentrackirSessionController, opentrackir_session_controll
 
 OpentrackirSessionController *opentrackir_session_controller_new       (void);
 const OpentrackirSessionState *opentrackir_session_controller_get_state (OpentrackirSessionController *self);
+const OpentrackirUinputState *opentrackir_session_controller_get_mouse_state
+                                                                      (OpentrackirSessionController *self);
 gboolean                      opentrackir_session_controller_can_start (OpentrackirSessionController *self);
 gboolean                      opentrackir_session_controller_can_stop  (OpentrackirSessionController *self);
 void                          opentrackir_session_controller_start     (OpentrackirSessionController *self);
@@ -28,6 +31,10 @@ void                          opentrackir_session_controller_set_minimum_blob_ar
 void                          opentrackir_session_controller_set_centroid_mode
                                                                       (OpentrackirSessionController *self,
                                                                        otir_tir5v3_centroid_mode     mode);
+void                          opentrackir_session_controller_set_mouse_config
+                                                                      (OpentrackirSessionController       *self,
+                                                                       gboolean                            enabled,
+                                                                       otir_trackir_mouse_tracker_config   config);
 gboolean                      opentrackir_session_controller_copy_preview_frame
                                                                       (OpentrackirSessionController *self,
                                                                        guint8                        *frame,

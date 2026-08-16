@@ -25,7 +25,7 @@
       <summary>Shared centroid calculation mode</summary>
     </key>
     <key name="mouse-enabled" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Enable mouse movement</summary>
     </key>
     <key name="mouse-speed" type="d">

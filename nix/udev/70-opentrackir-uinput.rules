@@ -1,0 +1,2 @@
+# Grant the active local desktop session access to OpenTrackIR's virtual pointer.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

@@ -16,6 +16,10 @@ OPENTRACKIR_SOURCE_URL="file://$(git -C ../.. rev-parse --show-toplevel)" \
   makepkg --cleanbuild
 ```
 
+The optional `OPENTRACKIR_SOURCE_COMMIT` variable can select another committed
+revision for a local test package. Release packages keep using the commit pinned
+in `PKGBUILD`.
+
 Keeping `SRCDEST` outside the checkout prevents makepkg's bare Git source cache
 from appearing to editors as a nested repository. The generated package remains
 in `packaging/arch/`.
@@ -40,7 +44,8 @@ sudo pacman -U ./opentrackir-*.pkg.tar.zst
 
 Arch's package hooks reload udev rules, compile the GSettings schemas, and
 refresh the desktop and icon caches. To use pointer movement without rebooting,
-load `uinput`, then reconnect the TrackIR so the new USB rule is applied:
+load `uinput`, then reconnect the TrackIR and any X-keys pedal so the new device
+rules are applied:
 
 ```sh
 sudo modprobe uinput

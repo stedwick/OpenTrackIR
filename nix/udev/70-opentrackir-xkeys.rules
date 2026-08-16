@@ -1,0 +1,3 @@
+# Grant access only to the consumer-control interface used for pedal reports.
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="05f3", ENV{ID_MODEL_ID}=="042c", ENV{ID_USB_INTERFACE_NUM}=="00", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="05f3", ENV{ID_MODEL_ID}=="0438", ENV{ID_USB_INTERFACE_NUM}=="00", TAG+="uaccess"

@@ -34,5 +34,8 @@ gboolean opentrackir_application_status_notifier_is_available
                                                        (OpentrackirApplication *self);
 guint    opentrackir_application_timeout_remaining_seconds
                                                        (OpentrackirApplication *self);
+const char *opentrackir_application_mouse_shortcut_description
+                                                       (OpentrackirApplication *self);
+const char *opentrackir_application_xkeys_description  (OpentrackirApplication *self);
 
 G_END_DECLS

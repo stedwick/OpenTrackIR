@@ -20,15 +20,27 @@
 
 #include "config.h"
 
+#include <signal.h>
+
 #include <glib/gi18n.h>
+#include <glib-unix.h>
 
 #include "opentrackir-application.h"
+
+static gboolean
+quit_on_unix_signal (gpointer user_data)
+{
+	g_application_quit (G_APPLICATION (user_data));
+	return G_SOURCE_CONTINUE;
+}
 
 int
 main (int   argc,
       char *argv[])
 {
 	g_autoptr(OpentrackirApplication) app = NULL;
+	guint sigint_source_id;
+	guint sigterm_source_id;
 	int ret;
 
 	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
@@ -36,7 +48,13 @@ main (int   argc,
 	textdomain (GETTEXT_PACKAGE);
 
 	app = opentrackir_application_new ("org.gnome.opentrackir", G_APPLICATION_DEFAULT_FLAGS);
+	sigint_source_id = g_unix_signal_add (SIGINT, quit_on_unix_signal, app);
+	sigterm_source_id = g_unix_signal_add (SIGTERM, quit_on_unix_signal, app);
 	ret = g_application_run (G_APPLICATION (app), argc, argv);
+	if (sigint_source_id != 0)
+		g_source_remove (sigint_source_id);
+	if (sigterm_source_id != 0)
+		g_source_remove (sigterm_source_id);
 
 	return ret;
 }

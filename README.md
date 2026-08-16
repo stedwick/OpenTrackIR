@@ -9,6 +9,8 @@ Windows 11, and Linux. The project is in active development.
 
 ## macOS
 
+![OpenTrackIR on macOS](screenshots/OpenTrackIR-021-macOS-26-Gif.gif)
+
 ### Install
 
 1. Download the latest macOS file from the
@@ -24,9 +26,9 @@ Windows 11, and Linux. The project is in active development.
 
 OpenTrackIR can move the pointer after you give this access.
 
-![OpenTrackIR on macOS](screenshots/OpenTrackIR-021-macOS-26-Gif.gif)
-
 ## Windows
+
+![OpenTrackIR on Windows 11](screenshots/OpenTrackIR-023-Win-11-Gif.gif)
 
 ### Install
 
@@ -46,11 +48,11 @@ driver if you want to use that app again.
 1. Open OpenTrackIR from the Start menu.
 2. Select **Refresh** if the app does not find the camera.
 
-![OpenTrackIR on Windows 11](screenshots/OpenTrackIR-023-Win-11-Gif.gif)
-
 ![Install the WinUSB driver with Zadig](screenshots/zadig-WinUSB-driver.png)
 
 ## Linux
+
+![OpenTrackIR on Linux](screenshots/OpenTrackIR-023-Linux.gif)
 
 The current Linux package supports Arch Linux and Omarchy. It uses GTK 4 and
 works on X11 and Wayland.
@@ -74,7 +76,7 @@ OpenTrackIR does not have packages for other Linux distributions yet. Install
 these build tools and development libraries with your package manager:
 
 - A C compiler, CMake, Meson, Ninja, pkg-config, and GNU gettext
-- libusb 1.0, GTK 4.12 or newer, libadwaita 1.4 or newer, and libevdev 1.10 or newer
+- libusb 1.0, GTK 4.12 or newer, libadwaita 1.4 or newer, libevdev 1.10 or newer, and libudev
 
 Then run these commands:
 
@@ -116,6 +118,10 @@ attached to that terminal. This behavior is normal.
 
 When you close the window, the app stays in the system tray. Right-click the
 tray icon to show or quit the app.
+
+Press **Shift+F7** to turn mouse movement on or off. Your desktop may ask you
+to approve this global shortcut the first time. You can also enable the optional
+X-keys fast mode in Advanced Controls. Hold the middle pedal for 2.5× speed.
 
 ## Advanced information
 
@@ -171,7 +177,8 @@ driver before you use the NaturalPoint app.
 
 ### Linux troubleshooting
 
-The Linux package installs rules for the TrackIR USB device and `/dev/uinput`.
+The Linux package installs rules for the TrackIR USB device, `/dev/uinput`, and
+the supported X-keys foot pedals.
 The app uses `/dev/uinput` to move the pointer. It does not need a special X11
 or Wayland extension.
 
@@ -198,6 +205,17 @@ sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput
 
 Disconnect and reconnect the TrackIR camera. Restart the computer if the camera
 or `/dev/uinput` is still not available. Do not run OpenTrackIR as root.
+
+If X-keys fast mode reports an access error, reconnect the pedal after installing
+or upgrading OpenTrackIR. The permission rule supports USB IDs `05f3:042c` and
+`05f3:0438` and grants access only to the pedal-report interface.
+
+Hyprland registers the OpenTrackIR action through the desktop portal but may
+require this line in its key binding configuration:
+
+```ini
+bind = SHIFT, F7, global, org.gnome.opentrackir:toggle-mouse
+```
 
 For more Linux setup information, read the [Linux README](nix/README.md).
 

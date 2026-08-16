@@ -26,6 +26,16 @@ display_logic_test = executable(
 
 test('OpenTrackIR display logic', display_logic_test)
 
+global_shortcut_test = executable(
+  'opentrackir-global-shortcut-test',
+  'test-global-shortcut.c',
+  '../src/opentrackir-global-shortcut.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('gio-2.0'),
+)
+
+test('OpenTrackIR global shortcut', global_shortcut_test)
+
 lifecycle_policy_test = executable(
   'opentrackir-lifecycle-policy-test',
   'test-lifecycle-policy.c',
@@ -76,3 +86,24 @@ uinput_pointer_test = executable(
 )
 
 test('OpenTrackIR uinput pointer', uinput_pointer_test)
+
+xkeys_policy_test = executable(
+  'opentrackir-xkeys-policy-test',
+  'test-xkeys-policy.c',
+  '../src/opentrackir-xkeys-policy.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('glib-2.0'),
+)
+
+test('OpenTrackIR X-keys policy', xkeys_policy_test)
+
+xkeys_monitor_test = executable(
+  'opentrackir-xkeys-monitor-test',
+  'test-xkeys-monitor.c',
+  '../src/opentrackir-xkeys-monitor.c',
+  '../src/opentrackir-xkeys-policy.c',
+  include_directories: include_directories('../src'),
+  dependencies: [dependency('gobject-2.0'), dependency('libudev')],
+)
+
+test('OpenTrackIR X-keys monitor', xkeys_monitor_test)

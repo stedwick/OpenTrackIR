@@ -24,17 +24,22 @@
 
 #include "opentrackir-application.h"
 #include "opentrackir-display-logic.h"
+#include "opentrackir-global-shortcut.h"
 #include "opentrackir-lifecycle-policy.h"
 #include "opentrackir-session-controller.h"
 #include "opentrackir-status-notifier.h"
 #include "opentrackir-uinput-policy.h"
 #include "opentrackir-window.h"
+#include "opentrackir-xkeys-monitor.h"
+#include "opentrackir-xkeys-policy.h"
 
 struct _OpentrackirApplication
 {
 	AdwApplication parent_instance;
 
 	OpentrackirSessionController *controller;
+	OpentrackirGlobalShortcut *global_shortcut;
+	OpentrackirXKeysMonitor *xkeys_monitor;
 	OpentrackirStatusNotifier *status_notifier;
 	GSettings *settings;
 	OpentrackirWindow *window;
@@ -50,6 +55,8 @@ enum
 {
 	PROP_0,
 	PROP_STATUS_NOTIFIER_AVAILABLE,
+	PROP_MOUSE_SHORTCUT_DESCRIPTION,
+	PROP_XKEYS_DESCRIPTION,
 	N_PROPERTIES,
 };
 
@@ -57,6 +64,21 @@ static GParamSpec *properties[N_PROPERTIES];
 
 static void opentrackir_application_update_power_policy (OpentrackirApplication *self);
 static void opentrackir_application_update_status_notifier (OpentrackirApplication *self);
+
+static void
+global_shortcut_changed (OpentrackirGlobalShortcut *shortcut,
+                         OpentrackirApplication    *self)
+{
+	const char *const fallback_accels[] = { "<Shift>F7", NULL };
+
+	/* Keep the in-window accelerator as a fallback. Global shortcut portals
+	 * normally consume the registered key before GTK sees it. */
+	gtk_application_set_accels_for_action (GTK_APPLICATION (self),
+	                                       "app.toggle-mouse",
+	                                       fallback_accels);
+	g_object_notify_by_pspec (G_OBJECT (self),
+	                          properties[PROP_MOUSE_SHORTCUT_DESCRIPTION]);
+}
 
 OpentrackirApplication *
 opentrackir_application_new (const char        *application_id,
@@ -75,9 +97,19 @@ static void
 opentrackir_application_apply_mouse_configuration (OpentrackirApplication *self)
 {
 	otir_trackir_mouse_tracker_config config;
+	OpentrackirXKeysState xkeys_state = { .phase = OPENTRACKIR_XKEYS_PHASE_DISABLED };
+	double effective_speed;
+
+	if (self->xkeys_monitor != NULL)
+		xkeys_state = opentrackir_xkeys_monitor_get_state (self->xkeys_monitor);
+	effective_speed = opentrackir_xkeys_effective_speed (
+		g_settings_get_double (self->settings, "mouse-speed"),
+		g_settings_get_boolean (self->settings, "xkeys-fast-mode-enabled"),
+		xkeys_state.phase == OPENTRACKIR_XKEYS_PHASE_PRESSED
+	);
 
 	config = opentrackir_build_mouse_tracker_config (
-		g_settings_get_double (self->settings, "mouse-speed"),
+		effective_speed,
 		(double)g_settings_get_int (self->settings, "mouse-smoothing"),
 		g_settings_get_double (self->settings, "mouse-dead-zone"),
 		g_settings_get_boolean (self->settings, "avoid-mouse-jumps"),
@@ -93,6 +125,14 @@ opentrackir_application_apply_mouse_configuration (OpentrackirApplication *self)
 		(guint)g_settings_get_int (self->settings, "keep-awake-seconds"),
 		config
 	);
+}
+
+static void
+xkeys_state_changed (OpentrackirXKeysMonitor *monitor,
+                     OpentrackirApplication  *self)
+{
+	opentrackir_application_apply_mouse_configuration (self);
+	g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_XKEYS_DESCRIPTION]);
 }
 
 static gboolean
@@ -324,6 +364,14 @@ settings_changed (GSettings                *settings,
 	{
 		opentrackir_application_update_timeout (self);
 	}
+	else if (g_str_equal (key, "xkeys-fast-mode-enabled"))
+	{
+		opentrackir_xkeys_monitor_set_enabled (
+			self->xkeys_monitor,
+			g_settings_get_boolean (settings, key));
+		opentrackir_application_apply_mouse_configuration (self);
+		g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_XKEYS_DESCRIPTION]);
+	}
 	else if (g_str_equal (key, "background-enabled"))
 	{
 		opentrackir_application_update_background_hold (self);
@@ -378,6 +426,22 @@ opentrackir_application_startup (GApplication *application)
 
 	self->settings = g_settings_new ("org.gnome.opentrackir");
 	self->controller = opentrackir_session_controller_new ();
+	self->xkeys_monitor = opentrackir_xkeys_monitor_new ();
+	g_signal_connect_object (self->xkeys_monitor,
+	                         "state-changed",
+	                         G_CALLBACK (xkeys_state_changed),
+	                         self,
+	                         0);
+	opentrackir_xkeys_monitor_set_enabled (
+		self->xkeys_monitor,
+		g_settings_get_boolean (self->settings, "xkeys-fast-mode-enabled"));
+	self->global_shortcut = opentrackir_global_shortcut_new (G_ACTION_GROUP (self));
+	g_signal_connect_object (self->global_shortcut,
+	                         "changed",
+	                         G_CALLBACK (global_shortcut_changed),
+	                         self,
+	                         0);
+	opentrackir_global_shortcut_start (self->global_shortcut);
 	self->status_notifier = opentrackir_status_notifier_new (application);
 	g_signal_connect_object (self->status_notifier,
 	                         "availability-changed",
@@ -396,6 +460,12 @@ opentrackir_application_shutdown (GApplication *application)
 {
 	OpentrackirApplication *self = OPENTRACKIR_APPLICATION (application);
 
+	/* The window also owns the controller, so do not rely on final disposal to
+	 * stop the camera before the process exits. Wait for the TrackIR worker to
+	 * send its shutdown commands and release the USB device now. */
+	if (self->controller != NULL)
+		opentrackir_session_controller_stop (self->controller);
+
 	if (self->timeout_source_id != 0)
 	{
 		g_source_remove (self->timeout_source_id);
@@ -409,6 +479,8 @@ opentrackir_application_shutdown (GApplication *application)
 
 	if (self->status_notifier != NULL)
 		g_signal_handlers_disconnect_by_data (self->status_notifier, self);
+	g_clear_object (&self->global_shortcut);
+	g_clear_object (&self->xkeys_monitor);
 	g_clear_object (&self->status_notifier);
 	g_clear_object (&self->settings);
 	g_clear_object (&self->controller);
@@ -514,6 +586,28 @@ opentrackir_application_timeout_remaining_seconds (OpentrackirApplication *self)
 	);
 }
 
+const char *
+opentrackir_application_mouse_shortcut_description (OpentrackirApplication *self)
+{
+	g_return_val_if_fail (OPENTRACKIR_IS_APPLICATION (self), NULL);
+
+	if (self->global_shortcut == NULL)
+		return _("Shift+F7 while this window is focused.");
+	return opentrackir_global_shortcut_get_description (self->global_shortcut);
+}
+
+const char *
+opentrackir_application_xkeys_description (OpentrackirApplication *self)
+{
+	OpentrackirXKeysState state;
+
+	g_return_val_if_fail (OPENTRACKIR_IS_APPLICATION (self), NULL);
+	if (self->xkeys_monitor == NULL)
+		return opentrackir_xkeys_phase_message (OPENTRACKIR_XKEYS_PHASE_DISABLED);
+	state = opentrackir_xkeys_monitor_get_state (self->xkeys_monitor);
+	return opentrackir_xkeys_phase_message (state.phase);
+}
+
 static void
 opentrackir_application_get_property (GObject    *object,
                                       guint       property_id,
@@ -527,6 +621,13 @@ opentrackir_application_get_property (GObject    *object,
 	case PROP_STATUS_NOTIFIER_AVAILABLE:
 		g_value_set_boolean (value,
 		                     opentrackir_application_status_notifier_is_available (self));
+		break;
+	case PROP_MOUSE_SHORTCUT_DESCRIPTION:
+		g_value_set_string (value,
+		                    opentrackir_application_mouse_shortcut_description (self));
+		break;
+	case PROP_XKEYS_DESCRIPTION:
+		g_value_set_string (value, opentrackir_application_xkeys_description (self));
 		break;
 	case PROP_0:
 	default:
@@ -552,6 +653,18 @@ opentrackir_application_class_init (OpentrackirApplicationClass *klass)
 		                      NULL,
 		                      FALSE,
 		                      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+	properties[PROP_MOUSE_SHORTCUT_DESCRIPTION] =
+		g_param_spec_string ("mouse-shortcut-description",
+		                     NULL,
+		                     NULL,
+		                     NULL,
+		                     G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+	properties[PROP_XKEYS_DESCRIPTION] =
+		g_param_spec_string ("xkeys-description",
+		                     NULL,
+		                     NULL,
+		                     NULL,
+		                     G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 	g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -565,4 +678,7 @@ opentrackir_application_init (OpentrackirApplication *self)
 	gtk_application_set_accels_for_action (GTK_APPLICATION (self),
 	                                       "app.quit",
 	                                       (const char *[]) { "<control>q", NULL });
+	gtk_application_set_accels_for_action (GTK_APPLICATION (self),
+	                                       "app.toggle-mouse",
+	                                       (const char *[]) { "<Shift>F7", NULL });
 }

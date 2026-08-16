@@ -15,13 +15,15 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `src/opentrackir-uinput-policy.c`: pure error mapping, fractional delta dispatch, event selection, and mouse configuration mapping.
 - `src/opentrackir-uinput-pointer.c`: Linux libevdev/uinput relative-pointer adapter.
 - `src/opentrackir-mouse-worker.c`: dedicated tracker and pointer-output worker, isolated from GTK.
+- `src/opentrackir-global-shortcut.c`: XDG Global Shortcuts portal adapter with a focused-window fallback.
+- `src/opentrackir-xkeys-monitor.c`: blocking libudev/hidraw X-keys worker; report and speed policy stays in `opentrackir-xkeys-policy.c`.
 - `src/opentrackir-status-notifier.c`: optional standard D-Bus StatusNotifierItem integration without a GTK 3 dependency.
 - `src/opentrackir-window.c`: `AdwApplicationWindow` implementation and GTK template bindings.
 - `src/opentrackir-window.ui`: main window template and primary menu.
 - `src/shortcuts-dialog.ui`: keyboard-shortcut resource.
 - `src/opentrackir.gresource.xml`: compiled GTK resource manifest.
 - `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, application icons, and Meson installation of Linux system-integration files.
-- `udev/`, `modules-load/`: narrowly scoped TrackIR USB and uinput permission rules plus boot-time uinput module loading for native installs.
+- `udev/`, `modules-load/`: narrowly scoped TrackIR USB, X-keys interface, and uinput permission rules plus boot-time uinput module loading for native installs.
 - `../packaging/arch/`: Arch Linux/Omarchy `PKGBUILD`, install notice, and package build instructions.
 - `po/`: gettext source list and language catalog configuration.
 

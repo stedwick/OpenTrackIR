@@ -37,6 +37,10 @@
       <default>2.0</default>
       <summary>Mouse movement speed</summary>
     </key>
+    <key name="xkeys-fast-mode-enabled" type="b">
+      <default>false</default>
+      <summary>Enable the X-keys middle-pedal speed boost</summary>
+    </key>
     <key name="mouse-smoothing" type="i">
       <range min="1" max="10"/>
       <default>3</default>

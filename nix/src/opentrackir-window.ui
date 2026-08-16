@@ -232,6 +232,12 @@
                       </object>
                     </child>
                     <child>
+                      <object class="AdwActionRow" id="mouse_shortcut_row">
+                        <property name="title" translatable="yes">Mouse Toggle Shortcut</property>
+                        <property name="subtitle" translatable="yes">Registering Shift+F7…</property>
+                      </object>
+                    </child>
+                    <child>
                       <object class="AdwActionRow">
                         <property name="title" translatable="yes">Run in Background</property>
                         <property name="subtitle" translatable="yes">Keep OpenTrackIR available when its window is closed.</property>
@@ -274,6 +280,18 @@
                                 <property name="adjustment">mouse_speed_adjustment</property>
                                 <property name="digits">1</property>
                                 <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="xkeys_status_row">
+                            <property name="title" translatable="yes">X-keys Fast Mode</property>
+                            <property name="subtitle" translatable="yes">Hold the middle pedal for 2.5× speed.</property>
+                            <property name="activatable-widget">xkeys_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="xkeys_switch">
                                 <property name="valign">center</property>
                               </object>
                             </child>

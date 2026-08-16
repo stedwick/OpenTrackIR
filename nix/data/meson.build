@@ -58,6 +58,9 @@ install_data('../udev/70-opentrackir-trackir.rules',
 install_data('../udev/70-opentrackir-uinput.rules',
   install_dir: 'lib' / 'udev' / 'rules.d'
 )
+install_data('../udev/70-opentrackir-xkeys.rules',
+  install_dir: 'lib' / 'udev' / 'rules.d'
+)
 install_data('../modules-load/opentrackir-uinput.conf',
   install_dir: 'lib' / 'modules-load.d'
 )

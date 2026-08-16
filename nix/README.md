@@ -3,8 +3,8 @@
 This directory contains the GTK 4 and libadwaita application for Linux. During host development, it links to a staged installation of the shared OpenTrackIR C library through pkg-config.
 
 The native build requires a C toolchain, CMake, Meson, Ninja, pkg-config,
-`libusb-1.0`, GTK 4 4.12 or newer, libadwaita 1.4 or newer, and libevdev 1.10
-or newer. `desktop-file-validate`, `appstreamcli`, and
+`libusb-1.0`, GTK 4 4.12 or newer, libadwaita 1.4 or newer, libevdev 1.10
+or newer, and libudev. `desktop-file-validate`, `appstreamcli`, and
 `glib-compile-schemas` enable the metadata validation tests.
 
 ## Host development build
@@ -181,6 +181,37 @@ OpenTrackIR user to that group. Do not add users to the broad `input` group;
 that can expose physical keyboard and pointer events. Keep this permission
 separate from the TrackIR USB rule because camera access and virtual pointer
 output are independent.
+
+## Keyboard shortcut and X-keys pedal
+
+OpenTrackIR requests `Shift+F7` through the standard desktop global-shortcut
+portal. The desktop may ask you to approve or change it. The shortcut toggles
+mouse movement while the window is visible or hidden. If the portal is not
+available, `Shift+F7` still works while the OpenTrackIR window has focus.
+
+Hyprland exposes application shortcut actions through the portal but leaves the
+physical key assignment in the compositor configuration. Add this binding if
+`Shift+F7` does not activate the registered action on Hyprland:
+
+```ini
+bind = SHIFT, F7, global, org.gnome.opentrackir:toggle-mouse
+```
+
+The optional X-keys fast mode reads the middle pedal from its consumer-control
+`hidraw` interface on a background thread. Install the narrow permission rule
+for a development or unpackaged build:
+
+```sh
+sudo install -Dm644 \
+  nix/udev/70-opentrackir-xkeys.rules \
+  /etc/udev/rules.d/70-opentrackir-xkeys.rules
+sudo udevadm control --reload-rules
+```
+
+Disconnect and reconnect the X-keys pedal. The rule covers models `05f3:042c`
+and `05f3:0438`, and grants access only to interface `00`. It does not grant
+access to the pedal's keyboard or mouse interfaces. Native packages install
+the same rule automatically.
 
 ## Background operation
 

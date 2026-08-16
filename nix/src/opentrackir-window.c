@@ -30,6 +30,7 @@ struct _OpentrackirWindow
 	GtkSwitch *horizontal_flip_switch;
 	GtkSwitch *vertical_flip_switch;
 	GtkSwitch *timeout_switch;
+	GtkSwitch *xkeys_switch;
 	GtkSpinButton *tracking_rate_spin;
 	GtkSpinButton *minimum_blob_spin;
 	GtkSpinButton *mouse_speed_spin;
@@ -40,6 +41,8 @@ struct _OpentrackirWindow
 	GtkSpinButton *keep_awake_spin;
 	GtkSpinButton *timeout_spin;
 	AdwActionRow *timeout_duration_row;
+	AdwActionRow *mouse_shortcut_row;
+	AdwActionRow *xkeys_status_row;
 	AdwActionRow *phase_row;
 	AdwActionRow *mouse_status_row;
 	AdwActionRow *background_status_row;
@@ -88,6 +91,34 @@ phase_label (OpentrackirSessionPhase phase)
 static void update_preview_policy (OpentrackirWindow *self);
 static void update_background_status (OpentrackirWindow *self);
 static void update_timeout_countdown_policy (OpentrackirWindow *self);
+
+static void
+update_mouse_shortcut (OpentrackirWindow *self)
+{
+	GtkApplication *application = gtk_window_get_application (GTK_WINDOW (self));
+
+	if (OPENTRACKIR_IS_APPLICATION (application))
+	{
+		adw_action_row_set_subtitle (
+			self->mouse_shortcut_row,
+			opentrackir_application_mouse_shortcut_description (
+				OPENTRACKIR_APPLICATION (application)));
+	}
+}
+
+static void
+update_xkeys_status (OpentrackirWindow *self)
+{
+	GtkApplication *application = gtk_window_get_application (GTK_WINDOW (self));
+
+	if (OPENTRACKIR_IS_APPLICATION (application))
+	{
+		adw_action_row_set_subtitle (
+			self->xkeys_status_row,
+			opentrackir_application_xkeys_description (
+				OPENTRACKIR_APPLICATION (application)));
+	}
+}
 
 gboolean
 opentrackir_window_is_visible_for_work (OpentrackirWindow *self)
@@ -474,6 +505,22 @@ status_notifier_availability_changed (OpentrackirApplication *application,
 }
 
 static void
+mouse_shortcut_description_changed (OpentrackirApplication *application,
+                                    GParamSpec              *pspec,
+                                    OpentrackirWindow       *self)
+{
+	update_mouse_shortcut (self);
+}
+
+static void
+xkeys_description_changed (OpentrackirApplication *application,
+                           GParamSpec              *pspec,
+                           OpentrackirWindow       *self)
+{
+	update_xkeys_status (self);
+}
+
+static void
 integer_spin_changed (GtkSpinButton     *spin_button,
                       OpentrackirWindow *self)
 {
@@ -570,6 +617,7 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, horizontal_flip_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, vertical_flip_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_switch);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, xkeys_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, tracking_rate_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, minimum_blob_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_speed_spin);
@@ -580,6 +628,8 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, keep_awake_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_duration_row);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_shortcut_row);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, xkeys_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, phase_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, background_status_row);
@@ -621,6 +671,7 @@ opentrackir_window_new (GtkApplication               *application,
 	g_settings_bind (self->settings, "horizontal-flip", self->horizontal_flip_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "vertical-flip", self->vertical_flip_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "timeout-enabled", self->timeout_switch, "active", G_SETTINGS_BIND_DEFAULT);
+	g_settings_bind (self->settings, "xkeys-fast-mode-enabled", self->xkeys_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "tracking-frames-per-second", self->tracking_rate_spin, "value", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "mouse-speed", self->mouse_speed_spin, "value", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "mouse-dead-zone", self->dead_zone_spin, "value", G_SETTINGS_BIND_DEFAULT);
@@ -652,6 +703,16 @@ opentrackir_window_new (GtkApplication               *application,
 	                         G_CALLBACK (status_notifier_availability_changed),
 	                         self,
 	                         0);
+	g_signal_connect_object (application,
+	                         "notify::mouse-shortcut-description",
+	                         G_CALLBACK (mouse_shortcut_description_changed),
+	                         self,
+	                         0);
+	g_signal_connect_object (application,
+	                         "notify::xkeys-description",
+	                         G_CALLBACK (xkeys_description_changed),
+	                         self,
+	                         0);
 	g_signal_connect (self->camera_switch,
 	                  "notify::active",
 	                  G_CALLBACK (camera_enabled_changed),
@@ -670,6 +731,8 @@ opentrackir_window_new (GtkApplication               *application,
 	                          self);
 	update_state (self);
 	update_mouse_state (self);
+	update_mouse_shortcut (self);
+	update_xkeys_status (self);
 	update_background_status (self);
 	update_timeout_countdown_policy (self);
 	return self;

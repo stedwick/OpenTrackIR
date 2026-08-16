@@ -123,6 +123,11 @@ Press **Shift+F7** to turn mouse movement on or off. Your desktop may ask you
 to approve this global shortcut the first time. You can also enable the optional
 X-keys fast mode in Advanced Controls. Hold the middle pedal for 2.5× speed.
 
+On Omarchy and Hyprland, find **Global Hotkey** in OpenTrackIR. Select
+**Install Hotkey** to add Shift+F7 to the detected Hyprland config. OpenTrackIR
+creates a backup and checks the config before keeping the change. Select
+**Open Config** to inspect or edit the file in your default editor.
+
 ## Advanced information
 
 ### Project status
@@ -210,8 +215,7 @@ If X-keys fast mode reports an access error, reconnect the pedal after installin
 or upgrading OpenTrackIR. The permission rule supports USB IDs `05f3:042c` and
 `05f3:0438` and grants access only to the pedal-report interface.
 
-Hyprland registers the OpenTrackIR action through the desktop portal but may
-require this line in its key binding configuration:
+Other Hyprland installations that use `hyprland.conf` need this binding:
 
 ```ini
 bind = SHIFT, F7, global, org.gnome.opentrackir:toggle-mouse

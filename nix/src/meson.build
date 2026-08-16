@@ -3,6 +3,7 @@ opentrackir_sources = [
   'opentrackir-application.c',
   'opentrackir-display-logic.c',
   'opentrackir-global-shortcut.c',
+  'opentrackir-hyprland-config.c',
   'opentrackir-lifecycle-policy.c',
   'opentrackir-mouse-worker.c',
   'opentrackir-session-controller.c',

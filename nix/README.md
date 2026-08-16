@@ -190,8 +190,26 @@ mouse movement while the window is visible or hidden. If the portal is not
 available, `Shift+F7` still works while the OpenTrackIR window has focus.
 
 Hyprland exposes application shortcut actions through the portal but leaves the
-physical key assignment in the compositor configuration. Add this binding if
-`Shift+F7` does not activate the registered action on Hyprland:
+physical key assignment in the compositor configuration. OpenTrackIR detects
+Omarchy's `bindings.lua`, Hyprland's main Lua config, or the classic
+`hyprland.conf`. The **Global Hotkey** row explains which file it found.
+
+Select **Install Hotkey** to make a timestamped backup, add Shift+F7, reload
+Hyprland, and check for configuration errors. OpenTrackIR restores the original
+file if Hyprland rejects the change. Select **Open Config** to open the detected
+file in the default editor.
+
+The Omarchy Lua binding is:
+
+```lua
+o.bind(
+  "SHIFT + F7",
+  "Toggle OpenTrackIR mouse movement",
+  hl.dsp.global("org.gnome.opentrackir:toggle-mouse")
+)
+```
+
+For a Hyprland installation that uses `hyprland.conf`, add:
 
 ```ini
 bind = SHIFT, F7, global, org.gnome.opentrackir:toggle-mouse

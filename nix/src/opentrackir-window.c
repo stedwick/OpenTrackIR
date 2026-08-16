@@ -8,9 +8,11 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
+#include <string.h>
 
 #include "opentrackir-application.h"
 #include "opentrackir-display-logic.h"
+#include "opentrackir-hyprland-config.h"
 #include "opentrackir-lifecycle-policy.h"
 #include "opentrackir-window.h"
 
@@ -40,8 +42,10 @@ struct _OpentrackirWindow
 	GtkSpinButton *rotation_spin;
 	GtkSpinButton *keep_awake_spin;
 	GtkSpinButton *timeout_spin;
+	GtkButton *install_hotkey_button;
+	GtkButton *open_hotkey_config_button;
 	AdwActionRow *timeout_duration_row;
-	AdwActionRow *mouse_shortcut_row;
+	AdwActionRow *global_hotkey_row;
 	AdwActionRow *xkeys_status_row;
 	AdwActionRow *phase_row;
 	AdwActionRow *mouse_status_row;
@@ -57,6 +61,10 @@ struct _OpentrackirWindow
 	guint preview_source_id;
 	guint timeout_countdown_source_id;
 	guint64 last_preview_generation;
+	char *hotkey_config_path;
+	OpentrackirHyprlandConfigStyle hotkey_config_style;
+	gboolean is_hyprland;
+	gboolean hotkey_install_in_progress;
 };
 
 G_DEFINE_FINAL_TYPE (OpentrackirWindow, opentrackir_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -92,18 +100,220 @@ static void update_preview_policy (OpentrackirWindow *self);
 static void update_background_status (OpentrackirWindow *self);
 static void update_timeout_countdown_policy (OpentrackirWindow *self);
 
+typedef struct
+{
+	char *path;
+	OpentrackirHyprlandConfigStyle style;
+} InstallHotkeyTaskData;
+
 static void
-update_mouse_shortcut (OpentrackirWindow *self)
+install_hotkey_task_data_free (InstallHotkeyTaskData *data)
+{
+	g_free (data->path);
+	g_free (data);
+}
+
+static char *
+display_config_path (const char *path)
+{
+	const char *home = g_get_home_dir ();
+	gsize home_length;
+
+	if (home == NULL || !g_str_has_prefix (path, home))
+		return g_filename_display_name (path);
+
+	home_length = strlen (home);
+	if (path[home_length] != G_DIR_SEPARATOR)
+		return g_filename_display_name (path);
+	return g_strdup_printf ("~%s", path + home_length);
+}
+
+static gboolean
+hyprland_config_has_binding (OpentrackirWindow *self)
+{
+	g_autofree char *contents = NULL;
+
+	return self->hotkey_config_path != NULL &&
+	       g_file_get_contents (self->hotkey_config_path, &contents, NULL, NULL) &&
+	       opentrackir_hyprland_content_has_binding (contents);
+}
+
+static void
+update_global_hotkey (OpentrackirWindow *self)
 {
 	GtkApplication *application = gtk_window_get_application (GTK_WINDOW (self));
 
-	if (OPENTRACKIR_IS_APPLICATION (application))
+	if (!self->is_hyprland)
+	{
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), FALSE);
+		gtk_widget_set_visible (GTK_WIDGET (self->open_hotkey_config_button), FALSE);
+		if (OPENTRACKIR_IS_APPLICATION (application))
+		{
+			adw_action_row_set_subtitle (
+				self->global_hotkey_row,
+				opentrackir_application_mouse_shortcut_description (
+					OPENTRACKIR_APPLICATION (application)));
+		}
+		return;
+	}
+
+	if (self->hotkey_config_path == NULL)
 	{
 		adw_action_row_set_subtitle (
-			self->mouse_shortcut_row,
-			opentrackir_application_mouse_shortcut_description (
-				OPENTRACKIR_APPLICATION (application)));
+			self->global_hotkey_row,
+			_("Hyprland detected, but no supported config file was found."));
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), FALSE);
+		gtk_widget_set_visible (GTK_WIDGET (self->open_hotkey_config_button), FALSE);
+		return;
 	}
+
+	gtk_widget_set_visible (GTK_WIDGET (self->open_hotkey_config_button), TRUE);
+	gtk_widget_set_sensitive (GTK_WIDGET (self->open_hotkey_config_button),
+	                          !self->hotkey_install_in_progress);
+	if (self->hotkey_install_in_progress)
+	{
+		adw_action_row_set_subtitle (
+			self->global_hotkey_row,
+			_("Adding Shift+F7 and checking the Hyprland configuration…"));
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), TRUE);
+		gtk_button_set_label (self->install_hotkey_button, _("Installing…"));
+		gtk_widget_set_sensitive (GTK_WIDGET (self->install_hotkey_button), FALSE);
+		return;
+	}
+
+	if (hyprland_config_has_binding (self))
+	{
+		g_autofree char *display_path = display_config_path (self->hotkey_config_path);
+		g_autofree char *message =
+			g_strdup_printf (_("Shift+F7 is installed in %s."), display_path);
+
+		adw_action_row_set_subtitle (self->global_hotkey_row, message);
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), TRUE);
+		gtk_button_set_label (self->install_hotkey_button, _("Installed"));
+		gtk_widget_set_sensitive (GTK_WIDGET (self->install_hotkey_button), FALSE);
+	}
+	else
+	{
+		g_autofree char *display_path = display_config_path (self->hotkey_config_path);
+		g_autofree char *message = g_strdup_printf (
+			_("Hyprland detected. Install Hotkey will add Shift+F7 to %s and create a backup."),
+			display_path
+		);
+
+		adw_action_row_set_subtitle (self->global_hotkey_row, message);
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), TRUE);
+		gtk_button_set_label (self->install_hotkey_button, _("Install Hotkey"));
+		gtk_widget_set_sensitive (GTK_WIDGET (self->install_hotkey_button), TRUE);
+	}
+}
+
+static void
+install_hotkey_thread (GTask        *task,
+                       gpointer      source_object,
+                       gpointer      task_data,
+                       GCancellable *cancellable)
+{
+	InstallHotkeyTaskData *data = task_data;
+	g_autofree char *backup_path = NULL;
+	g_autoptr(GError) error = NULL;
+	gboolean changed;
+
+	if (!opentrackir_hyprland_install_binding (data->path,
+	                                          data->style,
+	                                          &changed,
+	                                          &backup_path,
+	                                          &error))
+	{
+		g_task_return_error (task, g_steal_pointer (&error));
+		return;
+	}
+
+	g_task_return_boolean (task, TRUE);
+}
+
+static void
+install_hotkey_finished (GObject      *source,
+                         GAsyncResult *result,
+                         gpointer      user_data)
+{
+	OpentrackirWindow *self = OPENTRACKIR_WINDOW (source);
+	g_autoptr(GError) error = NULL;
+
+	self->hotkey_install_in_progress = FALSE;
+	if (!g_task_propagate_boolean (G_TASK (result), &error))
+	{
+		g_autofree char *message =
+			g_strdup_printf (_("Could not install Shift+F7: %s"), error->message);
+
+		adw_action_row_set_subtitle (self->global_hotkey_row, message);
+		gtk_widget_set_visible (GTK_WIDGET (self->install_hotkey_button), TRUE);
+		gtk_button_set_label (self->install_hotkey_button, _("Install Hotkey"));
+		gtk_widget_set_sensitive (GTK_WIDGET (self->install_hotkey_button), TRUE);
+		gtk_widget_set_sensitive (GTK_WIDGET (self->open_hotkey_config_button), TRUE);
+		return;
+	}
+
+	update_global_hotkey (self);
+}
+
+static void
+install_hotkey_clicked (GtkButton           *button,
+                        OpentrackirWindow    *self)
+{
+	g_autoptr(GTask) task = NULL;
+	InstallHotkeyTaskData *data;
+
+	if (self->hotkey_config_path == NULL || self->hotkey_install_in_progress)
+		return;
+
+	self->hotkey_install_in_progress = TRUE;
+	update_global_hotkey (self);
+	data = g_new0 (InstallHotkeyTaskData, 1);
+	data->path = g_strdup (self->hotkey_config_path);
+	data->style = self->hotkey_config_style;
+	task = g_task_new (self, NULL, install_hotkey_finished, NULL);
+	g_task_set_task_data (task,
+	                      data,
+	                      (GDestroyNotify)install_hotkey_task_data_free);
+	g_task_run_in_thread (task, install_hotkey_thread);
+}
+
+static void
+hotkey_config_opened (GObject      *source,
+                      GAsyncResult *result,
+                      gpointer      user_data)
+{
+	OpentrackirWindow *self = user_data;
+	g_autoptr(GError) error = NULL;
+
+	if (!gtk_file_launcher_launch_finish (GTK_FILE_LAUNCHER (source),
+	                                     result,
+	                                     &error))
+	{
+		g_autofree char *message =
+			g_strdup_printf (_("Could not open the Hyprland config: %s"), error->message);
+		adw_action_row_set_subtitle (self->global_hotkey_row, message);
+	}
+	g_object_unref (self);
+}
+
+static void
+open_hotkey_config_clicked (GtkButton        *button,
+                            OpentrackirWindow *self)
+{
+	g_autoptr(GFile) file = NULL;
+	g_autoptr(GtkFileLauncher) launcher = NULL;
+
+	if (self->hotkey_config_path == NULL)
+		return;
+
+	file = g_file_new_for_path (self->hotkey_config_path);
+	launcher = gtk_file_launcher_new (file);
+	gtk_file_launcher_launch (launcher,
+	                          GTK_WINDOW (self),
+	                          NULL,
+	                          hotkey_config_opened,
+	                          g_object_ref (self));
 }
 
 static void
@@ -509,7 +719,7 @@ mouse_shortcut_description_changed (OpentrackirApplication *application,
                                     GParamSpec              *pspec,
                                     OpentrackirWindow       *self)
 {
-	update_mouse_shortcut (self);
+	update_global_hotkey (self);
 }
 
 static void
@@ -581,6 +791,7 @@ opentrackir_window_dispose (GObject *object)
 	}
 	g_clear_object (&self->settings);
 	g_clear_object (&self->controller);
+	g_clear_pointer (&self->hotkey_config_path, g_free);
 
 	G_OBJECT_CLASS (opentrackir_window_parent_class)->dispose (object);
 }
@@ -627,8 +838,10 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, rotation_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, keep_awake_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_spin);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, install_hotkey_button);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, open_hotkey_config_button);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_duration_row);
-	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_shortcut_row);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, global_hotkey_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, xkeys_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, phase_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_status_row);
@@ -662,6 +875,14 @@ opentrackir_window_new (GtkApplication               *application,
 	                     NULL);
 	self->controller = g_object_ref (controller);
 	self->settings = g_object_ref (settings);
+	self->is_hyprland =
+		opentrackir_hyprland_desktop_matches (g_getenv ("XDG_CURRENT_DESKTOP")) ||
+		opentrackir_hyprland_desktop_matches (g_getenv ("XDG_SESSION_DESKTOP"));
+	if (self->is_hyprland)
+	{
+		self->hotkey_config_path =
+			opentrackir_hyprland_find_config (&self->hotkey_config_style);
+	}
 
 	g_settings_bind (self->settings, "camera-enabled", self->camera_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "video-enabled", self->video_switch, "active", G_SETTINGS_BIND_DEFAULT);
@@ -721,6 +942,14 @@ opentrackir_window_new (GtkApplication               *application,
 	                  "notify::active",
 	                  G_CALLBACK (video_enabled_changed),
 	                  self);
+	g_signal_connect (self->install_hotkey_button,
+	                  "clicked",
+	                  G_CALLBACK (install_hotkey_clicked),
+	                  self);
+	g_signal_connect (self->open_hotkey_config_button,
+	                  "clicked",
+	                  G_CALLBACK (open_hotkey_config_clicked),
+	                  self);
 	g_signal_connect (self,
 	                  "notify::mapped",
 	                  G_CALLBACK (window_mapped_changed),
@@ -731,7 +960,7 @@ opentrackir_window_new (GtkApplication               *application,
 	                          self);
 	update_state (self);
 	update_mouse_state (self);
-	update_mouse_shortcut (self);
+	update_global_hotkey (self);
 	update_xkeys_status (self);
 	update_background_status (self);
 	update_timeout_countdown_policy (self);

@@ -232,9 +232,29 @@
                       </object>
                     </child>
                     <child>
-                      <object class="AdwActionRow" id="mouse_shortcut_row">
-                        <property name="title" translatable="yes">Mouse Toggle Shortcut</property>
+                      <object class="AdwActionRow" id="global_hotkey_row">
+                        <property name="title" translatable="yes">Global Hotkey</property>
                         <property name="subtitle" translatable="yes">Registering Shift+F7…</property>
+                        <child type="suffix">
+                          <object class="GtkBox">
+                            <property name="spacing">6</property>
+                            <property name="valign">center</property>
+                            <child>
+                              <object class="GtkButton" id="install_hotkey_button">
+                                <property name="label" translatable="yes">Install Hotkey</property>
+                                <property name="visible">False</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="open_hotkey_config_button">
+                                <property name="label" translatable="yes">Open Config</property>
+                                <property name="visible">False</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
                       </object>
                     </child>
                     <child>

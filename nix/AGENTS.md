@@ -16,6 +16,7 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `src/opentrackir-uinput-pointer.c`: Linux libevdev/uinput relative-pointer adapter.
 - `src/opentrackir-mouse-worker.c`: dedicated tracker and pointer-output worker, isolated from GTK.
 - `src/opentrackir-global-shortcut.c`: XDG Global Shortcuts portal adapter with a focused-window fallback.
+- `src/opentrackir-hyprland-config.c`: Hyprland detection and backup-safe global-hotkey config installation.
 - `src/opentrackir-xkeys-monitor.c`: blocking libudev/hidraw X-keys worker; report and speed policy stays in `opentrackir-xkeys-policy.c`.
 - `src/opentrackir-status-notifier.c`: optional standard D-Bus StatusNotifierItem integration without a GTK 3 dependency.
 - `src/opentrackir-window.c`: `AdwApplicationWindow` implementation and GTK template bindings.

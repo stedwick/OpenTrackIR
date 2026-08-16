@@ -36,6 +36,16 @@ global_shortcut_test = executable(
 
 test('OpenTrackIR global shortcut', global_shortcut_test)
 
+hyprland_config_test = executable(
+  'opentrackir-hyprland-config-test',
+  'test-hyprland-config.c',
+  '../src/opentrackir-hyprland-config.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('gio-2.0'),
+)
+
+test('OpenTrackIR Hyprland config', hyprland_config_test)
+
 lifecycle_policy_test = executable(
   'opentrackir-lifecycle-policy-test',
   'test-lifecycle-policy.c',

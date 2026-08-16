@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(OpenTrackIR LANGUAGES C CXX)
+project(OpenTrackIR VERSION 0.2.3 LANGUAGES C CXX)
 
 option(OPENTRACKIR_BUILD_TESTS "Build OpenTrackIR native tests" ON)
 option(OPENTRACKIR_BUILD_PREVIEW "Build the OpenCV preview harness when dependencies are present" ON)

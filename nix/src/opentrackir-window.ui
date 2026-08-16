@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.12"/>
+  <requires lib="Adw" version="1.4"/>
+
+  <object class="GtkAdjustment" id="tracking_rate_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">240</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="minimum_blob_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">10000</property>
+    <property name="step-increment">10</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="mouse_speed_adjustment">
+    <property name="lower">0.1</property>
+    <property name="upper">10</property>
+    <property name="step-increment">0.1</property>
+    <property name="page-increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="smoothing_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">10</property>
+    <property name="step-increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="dead_zone_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">1</property>
+    <property name="step-increment">0.01</property>
+    <property name="page-increment">0.1</property>
+  </object>
+  <object class="GtkAdjustment" id="jump_threshold_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">1000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="rotation_adjustment">
+    <property name="lower">-180</property>
+    <property name="upper">180</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">15</property>
+  </object>
+  <object class="GtkAdjustment" id="keep_awake_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">3600</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="timeout_adjustment">
+    <property name="lower">1</property>
+    <property name="upper">604800</property>
+    <property name="step-increment">60</property>
+    <property name="page-increment">3600</property>
+  </object>
+
+  <template class="OpentrackirWindow" parent="AdwApplicationWindow">
+    <property name="title" translatable="yes">OpenTrackIR</property>
+    <property name="default-width">900</property>
+    <property name="default-height">850</property>
+    <property name="content">
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar">
+            <child type="end">
+              <object class="GtkMenuButton">
+                <property name="primary">True</property>
+                <property name="icon-name">open-menu-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Main Menu</property>
+                <property name="menu-model">primary_menu</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <property name="content">
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">18</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <property name="margin-start">24</property>
+                <property name="margin-end">24</property>
+
+                <child>
+                  <object class="GtkAspectFrame">
+                    <property name="ratio">1.333333</property>
+                    <property name="obey-child">False</property>
+                    <property name="height-request">360</property>
+                    <property name="child">
+                      <object class="GtkOverlay">
+                        <child>
+                          <object class="GtkPicture" id="preview_picture">
+                            <property name="content-fit">contain</property>
+                            <property name="can-shrink">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <child type="overlay">
+                          <object class="GtkLabel" id="preview_placeholder">
+                            <property name="label" translatable="yes">TrackIR is off</property>
+                            <property name="wrap">True</property>
+                            <property name="justify">center</property>
+                            <property name="halign">center</property>
+                            <property name="valign">center</property>
+                            <property name="margin-start">36</property>
+                            <property name="margin-end">36</property>
+                            <style>
+                              <class name="title-2"/>
+                              <class name="dim-label"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <child>
+                      <object class="AdwExpanderRow">
+                        <property name="title" translatable="yes">Live Telemetry</property>
+                        <property name="subtitle" translatable="yes">Camera, pointer, and frame details.</property>
+                        <property name="expanded">False</property>
+                        <child>
+                          <object class="AdwActionRow" id="phase_row">
+                            <property name="title" translatable="yes">Status</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="mouse_status_row">
+                            <property name="title" translatable="yes">Mouse Output</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="background_status_row">
+                            <property name="title" translatable="yes">Background</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="error_row">
+                            <property name="title" translatable="yes">Last Error</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="frame_index_row">
+                            <property name="title" translatable="yes">Processed Frames</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="frame_rate_row">
+                            <property name="title" translatable="yes">Source Rate</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="packet_type_row">
+                            <property name="title" translatable="yes">Packet Type</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="centroid_row">
+                            <property name="title" translatable="yes">Centroid</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Controls</property>
+                    <property name="description" translatable="yes">Camera and preview processing remain independent.</property>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Enable TrackIR</property>
+                        <property name="subtitle" translatable="yes">Start or stop the camera worker.</property>
+                        <property name="activatable-widget">camera_switch</property>
+                        <child type="suffix">
+                          <object class="GtkSwitch" id="camera_switch">
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Show Video</property>
+                        <property name="subtitle" translatable="yes">Stops all preview work when hidden or disabled.</property>
+                        <property name="activatable-widget">video_switch</property>
+                        <child type="suffix">
+                          <object class="GtkSwitch" id="video_switch">
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Tracking Rate</property>
+                        <property name="subtitle" translatable="yes">Maximum processed frames per second.</property>
+                        <child type="suffix">
+                          <object class="GtkSpinButton" id="tracking_rate_spin">
+                            <property name="adjustment">tracking_rate_adjustment</property>
+                            <property name="digits">0</property>
+                            <property name="numeric">True</property>
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Enable Mouse Movement</property>
+                        <property name="subtitle" translatable="yes">Move the pointer through the Linux uinput device.</property>
+                        <property name="activatable-widget">mouse_switch</property>
+                        <child type="suffix">
+                          <object class="GtkSwitch" id="mouse_switch">
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="global_hotkey_row">
+                        <property name="title" translatable="yes">Global Hotkey</property>
+                        <property name="subtitle" translatable="yes">Registering Shift+F7…</property>
+                        <child type="suffix">
+                          <object class="GtkBox">
+                            <property name="spacing">6</property>
+                            <property name="valign">center</property>
+                            <child>
+                              <object class="GtkButton" id="install_hotkey_button">
+                                <property name="label" translatable="yes">Install Hotkey</property>
+                                <property name="visible">False</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="open_hotkey_config_button">
+                                <property name="label" translatable="yes">Open Config</property>
+                                <property name="visible">False</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Run in Background</property>
+                        <property name="subtitle" translatable="yes">Keep OpenTrackIR available when its window is closed.</property>
+                        <property name="activatable-widget">background_switch</property>
+                        <child type="suffix">
+                          <object class="GtkSwitch" id="background_switch">
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Preferences</property>
+                    <child>
+                      <object class="AdwExpanderRow">
+                        <property name="title" translatable="yes">Advanced Controls</property>
+                        <property name="subtitle" translatable="yes">Blob detection, pointer filtering, transforms, keep-awake, and timeout.</property>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Minimum Blob Area</property>
+                            <property name="subtitle" translatable="yes">Ignore smaller candidates, in stripe points.</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="minimum_blob_spin">
+                                <property name="adjustment">minimum_blob_adjustment</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Mouse Speed</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="mouse_speed_spin">
+                                <property name="adjustment">mouse_speed_adjustment</property>
+                                <property name="digits">1</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="xkeys_status_row">
+                            <property name="title" translatable="yes">X-keys Fast Mode</property>
+                            <property name="subtitle" translatable="yes">Hold the middle pedal for 2.5× speed.</property>
+                            <property name="activatable-widget">xkeys_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="xkeys_switch">
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Smoothing</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="smoothing_spin">
+                                <property name="adjustment">smoothing_adjustment</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Dead Zone</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="dead_zone_spin">
+                                <property name="adjustment">dead_zone_adjustment</property>
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Avoid Mouse Jumps</property>
+                            <property name="activatable-widget">avoid_jumps_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="avoid_jumps_switch">
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Jump Threshold</property>
+                            <property name="subtitle" translatable="yes">Maximum accepted raw delta in pixels.</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="jump_threshold_spin">
+                                <property name="adjustment">jump_threshold_adjustment</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Flip Horizontally</property>
+                            <property name="activatable-widget">horizontal_flip_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="horizontal_flip_switch">
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Flip Vertically</property>
+                            <property name="activatable-widget">vertical_flip_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="vertical_flip_switch">
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Rotation</property>
+                            <property name="subtitle" translatable="yes">Pointer transform in degrees.</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="rotation_spin">
+                                <property name="adjustment">rotation_adjustment</property>
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Keep-Awake Interval</property>
+                            <property name="subtitle" translatable="yes">Seconds; zero disables it.</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="keep_awake_spin">
+                                <property name="adjustment">keep_awake_adjustment</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="title" translatable="yes">Enable Timeout</property>
+                            <property name="activatable-widget">timeout_switch</property>
+                            <child type="suffix">
+                              <object class="GtkSwitch" id="timeout_switch">
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="timeout_duration_row">
+                            <property name="title" translatable="yes">Timeout Duration</property>
+                            <property name="subtitle" translatable="yes">Seconds before TrackIR turns off.</property>
+                            <child type="suffix">
+                              <object class="GtkSpinButton" id="timeout_spin">
+                                <property name="adjustment">timeout_adjustment</property>
+                                <property name="numeric">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </property>
+      </object>
+    </property>
+  </template>
+
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Hide to Background</attribute>
+        <attribute name="action">app.hide</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_About OpenTrackIR</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Quit</attribute>
+        <attribute name="action">app.quit</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

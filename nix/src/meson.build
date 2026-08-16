@@ -1,0 +1,37 @@
+opentrackir_sources = [
+  'main.c',
+  'opentrackir-application.c',
+  'opentrackir-display-logic.c',
+  'opentrackir-global-shortcut.c',
+  'opentrackir-hyprland-config.c',
+  'opentrackir-lifecycle-policy.c',
+  'opentrackir-mouse-worker.c',
+  'opentrackir-session-controller.c',
+  'opentrackir-session-state.c',
+  'opentrackir-status-notifier.c',
+  'opentrackir-status-notifier-icon.c',
+  'opentrackir-status-notifier-menu.c',
+  'opentrackir-uinput-policy.c',
+  'opentrackir-uinput-pointer.c',
+  'opentrackir-window.c',
+  'opentrackir-xkeys-monitor.c',
+  'opentrackir-xkeys-policy.c',
+]
+
+opentrackir_deps = [
+  dependency('gtk4', version: '>= 4.12'),
+  dependency('libadwaita-1', version: '>= 1.4'),
+  dependency('libevdev', version: '>= 1.10'),
+  dependency('libudev'),
+  opentrackir_dep,
+]
+
+opentrackir_sources += gnome.compile_resources('opentrackir-resources',
+  'opentrackir.gresource.xml',
+  c_name: 'opentrackir'
+)
+
+executable('opentrackir', opentrackir_sources,
+  dependencies: opentrackir_deps,
+       install: true,
+)

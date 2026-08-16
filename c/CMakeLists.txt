@@ -1,3 +1,5 @@
+include(GNUInstallDirs)
+
 add_library(opentrackir SHARED
   src/tir5_protocol.c
   src/tir5_frame.c
@@ -6,15 +8,58 @@ add_library(opentrackir SHARED
   src/tir5_session.c
   src/tir5_tooling.c
 )
+set_target_properties(opentrackir PROPERTIES
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 if(WIN32)
   set_target_properties(opentrackir PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 find_package(Threads REQUIRED)
-target_include_directories(opentrackir PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(opentrackir PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(opentrackir PUBLIC opentrackir_libusb Threads::Threads)
 if(UNIX AND NOT APPLE)
   target_link_libraries(opentrackir PUBLIC m)
 endif()
+
+# Keep the pkg-config file relocatable so a staged core install can be used to
+# build platform applications without pretending all host dependencies live in
+# the same sysroot. This also supports multiarch CMAKE_INSTALL_LIBDIR values.
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+  set(OPENTRACKIR_PC_DIRECTORY "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  set(OPENTRACKIR_PC_PREFIX "${CMAKE_INSTALL_PREFIX}")
+else()
+  set(OPENTRACKIR_PC_DIRECTORY "/${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  set(OPENTRACKIR_PC_PREFIX "/")
+endif()
+file(RELATIVE_PATH
+  OPENTRACKIR_PC_PREFIX_RELATIVE
+  "${OPENTRACKIR_PC_DIRECTORY}"
+  "${OPENTRACKIR_PC_PREFIX}"
+)
+
+configure_file(
+  opentrackir.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/opentrackir.pc
+  @ONLY
+)
+
+install(TARGETS opentrackir
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+  DIRECTORY include/opentrackir
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/opentrackir.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
 
 function(otir_copy_runtime_dlls target_name)
   if(WIN32)
@@ -29,6 +74,7 @@ endfunction()
 
 if(OPENTRACKIR_BUILD_TESTS)
   add_executable(test_tir5 tests/test_tir5.c)
+  target_include_directories(test_tir5 PRIVATE src)
   target_link_libraries(test_tir5 PRIVATE opentrackir)
   otir_copy_runtime_dlls(test_tir5)
   add_test(NAME test_tir5 COMMAND test_tir5)

@@ -1,242 +1,337 @@
 # OpenTrackIR
 
-OpenTrackIR is an infrared head-mouse to move your cursor on macOS & Windows (and soon Linux) if you are disabled. OpenTrackIR is a reverse-engineering workspace for NaturalPoint TrackIR hardware, with the explicit goal of removing the dependency on NaturalPoint's proprietary SDK and making device support work cross-platform.
+OpenTrackIR moves the mouse pointer when you move your head. It uses a
+NaturalPoint TrackIR infrared camera. The app is an accessibility tool for
+people who use head movement as an input method.
 
-## macOS download app
+OpenTrackIR does not use the proprietary NaturalPoint SDK. It supports macOS,
+Windows 11, and Linux. The project is in active development.
 
-If you want to try the current macOS app, download it from the [releases page](https://github.com/stedwick/OpenTrackIR/releases).
+## macOS
 
-![OpenTrackIR macOS demo](screenshots/OpenTrackIR-021-macOS-26-Gif.gif)
+![OpenTrackIR on macOS](screenshots/OpenTrackIR-021-macOS-26-Gif.gif)
 
-## Windows 11 download app
+### Install
 
-If you want to try the current Windows 11 app, download it from the [Microsoft Windows App Store](https://apps.microsoft.com/detail/9NV04RGTBJKX). Don't forget to install the drivers! See instructions below 👇
+1. Download the latest macOS file from the
+   [OpenTrackIR releases page](https://github.com/stedwick/OpenTrackIR/releases).
+2. Open the downloaded ZIP file.
+3. Move `OpenTrackIR.app` to the Applications folder.
 
-![OpenTrackIR macOS demo](screenshots/OpenTrackIR-023-Win-11-Gif.gif)
+### Run
 
-### Windows 11 USB Driver setup
+1. Connect the TrackIR camera.
+2. Open OpenTrackIR from the Applications folder.
+3. Allow Accessibility access when macOS asks for it.
 
-On Windows, we require WinUSB drivers for the TrackIR.
+OpenTrackIR can move the pointer after you give this access.
 
-- Download Zadig from [zadig.akeo.ie](https://zadig.akeo.ie/), and plug in the TrackIR.
-- Open Zadig, choose the TrackIR device, select `WinUSB`, and click `Install Driver`.
-- The TrackIR may show up as an "Unknown Device".
-- Then restart the OpenTrackIR Windows app and press `Refresh`.
-- Important! You can't use OpenTrackIR and NaturalPoint TrackIR at the same time.
-  - Only one driver can be installed. It won't break anything, but you'll have to reinstall if you want to use their official software again.
+## Windows
 
-![Zadig WinUSB driver setup](screenshots/zadig-WinUSB-driver.png)
+![OpenTrackIR on Windows 11](screenshots/OpenTrackIR-023-Win-11-Gif.gif)
 
-## Notes on cross-platform development
+### Install
 
-Philip says: I want this to be cross-platform so I can use macOS, Windows, and Linux, and by golly, I'm going to do it! But it's definitely way too much for a solo developer like me to maintain three codebases for three OSes. In hindsight, it was a mistake. I'd like to look at something like https://avaloniaui.net in the future.
+1. Install OpenTrackIR from the [Microsoft Store](https://apps.microsoft.com/detail/9NV04RGTBJKX).
+2. Connect the TrackIR camera.
+3. Download and open [Zadig](https://zadig.akeo.ie/).
+4. Select the TrackIR device in Zadig. The device can have the name `Unknown Device`.
+5. Select `WinUSB`.
+6. Select **Install Driver**.
 
-## Repo outline
+Zadig replaces the NaturalPoint driver with WinUSB. The NaturalPoint app cannot
+use the camera while this driver is installed. Reinstall the NaturalPoint
+driver if you want to use that app again.
 
-The repo is organized by implementation target:
+### Run
 
-- `python/`: active protocol exploration, USB transport work, packet decoding, logging, and preview tooling.
-- `c/`: reusable cross-platform C library for TrackIR protocol, frame reconstruction, and device control.
-- `cpp/`: native C++ consumers and harnesses for the C library, including the OpenCV preview app.
-- `mac/`: SwiftUI macOS app with live TrackIR preview controls, native mouse output, and a temporary bridge to the shared C sources.
-- `win/`, `nix/`: platform-specific notes, adapters, or future integration work.
-- `tmp/`: scratch output and temporary artifacts.
+1. Open OpenTrackIR from the Start menu.
+2. Select **Refresh** if the app does not find the camera.
 
-## Project goals
+![Install the WinUSB driver with Zadig](screenshots/zadig-WinUSB-driver.png)
 
-- Identify and document the TrackIR device protocol.
-- Reproduce initialization, streaming, and shutdown behavior without vendor SDKs.
-- Build portable code paths that can be shared across macOS, Linux, and Windows.
-- Keep the reverse-engineered behavior testable with small, isolated units.
+## Linux
 
-## Current Python work
+![OpenTrackIR on Linux](screenshots/OpenTrackIR-023-Linux.gif)
 
-The Python implementation currently contains:
+The current Linux package supports Arch Linux and Omarchy. It uses GTK 4 and
+works on X11 and Wayland.
 
-- USB device discovery and transport helpers for the TrackIR 5 v3 hardware path.
-- Packet extraction and decoding helpers for the sensor stream.
-- A small CLI for identification, packet dumping, and preview rendering.
-- Unit tests around transport encoding, packet recovery, stripe decoding, centroid math, and shutdown sequencing.
+### Install
 
-The Python workbench remains the fastest place to validate protocol ideas before porting stable behavior into the native library.
+#### Arch Linux and Omarchy
 
-Useful Python CLI paths:
+Open a terminal and run these commands:
 
 ```sh
-cd python
-uv run python trackir_tir5v3.py opencv --log tmp/logs/opencv-manual.log
-uv run python trackir_tir5v3.py log --log tmp/logs/log-manual.log
+git clone https://github.com/stedwick/OpenTrackIR.git
+cd OpenTrackIR/packaging/arch
+makepkg --cleanbuild -si
+sudo modprobe uinput
 ```
 
-- `opencv`: live OpenCV preview window with centroid overlay.
-- `log`: no OpenCV window; prints `x` and `y` once per second to the terminal.
+#### Other Linux distributions
 
-## Working principles
+OpenTrackIR does not have packages for other Linux distributions yet. Install
+these build tools and development libraries with your package manager:
 
-- Prefer small, reversible changes over broad rewrites.
-- Keep protocol knowledge in pure functions where possible.
-- Add a focused unit test for each meaningful piece of business logic.
-- Preserve raw observations in logs so assumptions can be checked against device behavior later.
-- Avoid introducing dependencies on vendor SDKs, closed headers, or platform-locked assumptions.
+- A C compiler, CMake, Meson, Ninja, pkg-config, and GNU gettext
+- libusb 1.0, GTK 4.12 or newer, libadwaita 1.4 or newer, libevdev 1.10 or newer, and libudev
 
-## Status
-
-This repository is an active reverse-engineering project, not a finished end-user product. Expect experimental code, incomplete platform parity, and evolving protocol understanding.
-
-## Native Workbench
-
-The native port now lives in:
-
-- `CMakeLists.txt`: top-level native build entrypoint that wires the C and C++ subprojects together.
-- `c/CMakeLists.txt`: C library, C tests, and C streaming harness targets.
-- `cpp/CMakeLists.txt`: C++ consumer targets, including the OpenCV preview app.
-- `c/include/opentrackir/tir5.h`: public C API for protocol helpers, frame reconstruction, and device control.
-- `c/include/opentrackir/tir5_mouse.h`: shared centroid-to-cursor tracking and smoothing helpers.
-- `c/include/opentrackir/tir5_session.h`: native session snapshot API for higher-level app consumers.
-- `c/include/opentrackir/tir5_tooling.h`: shared CLI and FPS helper functions for native harnesses.
-- `c/src/`: protocol/frame implementation, shared mouse/session/tooling helpers, plus the current `libusb` device backend.
-- `c/examples/stream_dump.c`: simple C-only stream dumper that prints frame, packet, and centroid data.
-- `c/tests/test_tir5.c`: unit tests for pure parsing, centroid/frame logic, mouse helpers, and native tooling helpers.
-- `cpp/opencv_preview/main.cpp`: simple C++ OpenCV preview app that consumes the C API and serves as the first native hardware test harness.
-- `mac/OpenTrackIR/TrackIRRuntimeController.swift`: persisted control state, lifecycle gating, timeout handling, and camera sync policy.
-- `mac/OpenTrackIR/TrackIRCameraController.swift`: macOS-side session polling, preview publishing, and telemetry updates.
-- `mac/OpenTrackIR/TrackIRMouseBridge.c`: Quartz event bridge for moving the macOS cursor from shared C mouse deltas.
-- `mac/OpenTrackIR/TrackIRNativeSources.c`: temporary Xcode-side bridge that compiles the shared C sources into the app target.
-- `PLAN-macOS-libusb-to-IOKit.md`: follow-on transport split plan for replacing the current macOS `libusb` path with an Apple-native backend.
-
-The intended native split is:
-
-- The C library owns protocol parsing, centroid math, frame reconstruction, session state, reusable mouse-tracker logic, and hardware transport.
-- The C++ app owns preview rendering and native test-harness concerns on top of the public C API.
-- The macOS app owns native Apple UI, preview/image presentation, app lifecycle, and Quartz mouse-event posting on top of the shared library.
-- OpenCV stays out of the C library and out of the macOS app.
-
-The intended build flow is:
+Then run these commands:
 
 ```sh
-cmake -S . -B build
+git clone https://github.com/stedwick/OpenTrackIR.git
+cd OpenTrackIR
+
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DOPENTRACKIR_BUILD_PREVIEW=OFF
 cmake --build build
-ctest --test-dir build
+sudo cmake --install build
+
+meson setup nix/builddir nix \
+  --buildtype=release \
+  -Dpkg_config_path=/usr/local/lib/pkgconfig
+meson compile -C nix/builddir
+sudo meson install -C nix/builddir
+
+sudo ldconfig
+sudo modprobe uinput
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput
 ```
 
-This is one native project with C and C++ subprojects under a shared top-level build tree.
+Disconnect and reconnect the TrackIR camera after installation. You can also
+restart the computer.
 
-## Native dependencies
+### Run
 
-- `libusb-1.0` is required for the native C library and device layer.
-- OpenCV is required only for the C++ preview app.
-- CMake is the supported native build entrypoint.
-
-## macOS app status
-
-The macOS project now streams real TrackIR data through the shared C session layer and includes:
-
-- a live grayscale preview rendered with native Apple image APIs
-- centroid, frame-rate, packet-type, and phase telemetry in the dashboard
-- preview publishing that pauses when the window is hidden or inactive, with keep-awake-only background polling skipping snapshot reads and a host-side low-power mode engaging after 60 seconds of continuous hidden-window plus mouse-disabled idle time
-- controls for TrackIR enablement, preview visibility, FPS caps, blob filtering, video transforms, keep-awake, and timeout behavior
-- mouse movement driven by shared C tracking logic with a macOS Quartz event bridge
-- a global keyboard shortcut to toggle mouse movement
-
-The current macOS transport path is still temporary: the Xcode target compiles the shared C sources through `TrackIRNativeSources.c` and therefore still rides on the existing `libusb` backend. The planned transport split and IOKit migration are documented in [`PLAN-macOS-libusb-to-IOKit.md`](PLAN-macOS-libusb-to-IOKit.md).
-
-## Windows app status
-
-The WinUI Windows app now has a native runtime path wired to the shared C session API, live preview rendering, relative mouse movement through the shared C tracker logic plus native Windows `SendInput`, and optional X-keys foot-pedal fast mode through the Windows HID stack. The default global mouse-toggle hotkey is `Shift+F7`, and it stays active while OpenTrackIR is running, even if the window is hidden to the tray. The Windows UI expects an `opentrackir.dll` built from the shared native library to be present next to the app at runtime; until that native DLL is available, the app shows a native-runtime-missing error state instead of a live TrackIR feed.
-
-## macOS app build and run
-
-Open the app in Xcode:
+Open OpenTrackIR from the application launcher. You can also run this command:
 
 ```sh
-open mac/OpenTrackIR.xcodeproj
+opentrackir
 ```
 
-Then select the `OpenTrackIR` scheme and press Run.
+Do not run OpenTrackIR with `sudo`. If you use a terminal, the app stays
+attached to that terminal. This behavior is normal.
 
-To build from the terminal:
+When you close the window, the app stays in the system tray. Right-click the
+tray icon to show or quit the app.
 
-```sh
-cd /Users/philip/src/OpenTrackIR
-xcodebuild -project mac/OpenTrackIR.xcodeproj -scheme OpenTrackIR -destination 'platform=macOS' build
-```
+Press **Shift+F7** to turn mouse movement on or off. Your desktop may ask you
+to approve this global shortcut the first time. You can also enable the optional
+X-keys fast mode in Advanced Controls. Hold the middle pedal for 2.5× speed.
 
-To run only the macOS unit tests:
+On Omarchy and Hyprland, find **Global Hotkey** in OpenTrackIR. Select
+**Install Hotkey** to add Shift+F7 to the detected Hyprland config. OpenTrackIR
+creates a backup and checks the config before keeping the change. Select
+**Open Config** to inspect or edit the file in your default editor.
 
-```sh
-cd /Users/philip/src/OpenTrackIR
-xcodebuild -project mac/OpenTrackIR.xcodeproj -scheme OpenTrackIR -destination 'platform=macOS' test -only-testing:OpenTrackIRTests
-```
+## Advanced information
 
-To run the full macOS suite, including UI tests:
+### Project status
 
-```sh
-cd /Users/philip/src/OpenTrackIR
-xcodebuild -project mac/OpenTrackIR.xcodeproj -scheme OpenTrackIR -destination 'platform=macOS' test
-```
+OpenTrackIR is an active reverse-engineering project. Some features are
+different on each operating system. Our description of the device protocol can
+change when tests give new results.
 
-To run the built app from Finder, use Xcode's Product > Show Build Folder, then open `OpenTrackIR.app`.
+The Python tools are the protocol workbench. The shared C library contains
+stable protocol, frame, session, and mouse-tracker code. Each desktop app adds
+its user interface and its operating-system input code.
 
-If you want to launch it from the terminal after building:
+### Cross-platform development
 
-```sh
-open ~/Library/Developer/Xcode/DerivedData/OpenTrackIR-*/Build/Products/Debug/OpenTrackIR.app
-```
+Cross-platform development is interesting. The current project uses one shared
+C library and three native user interfaces. This design gives each app good
+access to its operating system, but it requires more maintenance.
 
-If `libusb-1.0` and OpenCV are available, the preview target is built alongside the C library and tests.
+In the future, I would also like to try [Avalonia](https://avaloniaui.net/) or
+[Vercel Labs Native SDK](https://github.com/vercel-labs/native). These tools can
+make one user interface work on multiple operating systems.
 
-## macOS permissions troubleshooting
+### macOS troubleshooting
 
-The macOS app currently crosses two separate privacy boundaries:
+Cursor movement and the optional X-keys foot pedal use different permissions.
+Cursor movement uses Accessibility access. The foot pedal uses Input Monitoring
+access.
 
-- Cursor movement uses Quartz post-event access through `CGRequestPostEventAccess()` in `mac/OpenTrackIR/TrackIRMouseBridge.c`.
-- The optional X-keys foot pedal fast-mode integration opens the HID device through `IOHIDDeviceOpen()` in `mac/OpenTrackIR/XKeysFootPedalMonitor.swift`.
-
-If the cursor stops moving after rebuilding or changing signing, the usual cause is stale TCC trust for the current app signature rather than a TrackIR transport failure. The app bundle identifier is `philsapps.OpenTrackIR`, so the practical reset is:
+If the pointer does not move after a rebuild, reset the app permissions:
 
 ```sh
 tccutil reset All philsapps.OpenTrackIR
 ```
 
-Then fully quit `OpenTrackIR`, remove any stale `OpenTrackIR` entry from System Settings > Privacy & Security > Accessibility, relaunch the current build, and re-approve it there when prompted. If you use the X-keys foot pedal, also approve Input Monitoring if macOS asks.
+Then do these steps:
 
-The `IOHIDDeviceOpen` TCC denial from the X-keys monitor does not directly block TrackIR cursor movement. It disables the optional foot-pedal fast mode, while stale Quartz post-event permission prevents mouse movement.
+1. Quit OpenTrackIR.
+2. Open **System Settings > Privacy & Security > Accessibility**.
+3. Remove an old OpenTrackIR entry.
+4. Open OpenTrackIR again.
+5. Allow Accessibility access.
 
-## Native run commands
+Allow Input Monitoring access if you use the X-keys foot pedal.
 
-Run the C unit tests:
+### Windows troubleshooting
+
+OpenTrackIR requires the WinUSB driver for the TrackIR camera. Open Zadig and
+install WinUSB again if Windows changes the driver.
+
+Only one TrackIR driver can control the camera. Reinstall the NaturalPoint
+driver before you use the NaturalPoint app.
+
+### Linux troubleshooting
+
+The Linux package installs rules for the TrackIR USB device, `/dev/uinput`, and
+the supported X-keys foot pedals.
+The app uses `/dev/uinput` to move the pointer. It does not need a special X11
+or Wayland extension.
+
+First, make sure that Linux can see the camera:
 
 ```sh
-cd /Users/philip/src/OpenTrackIR
-cmake -S . -B build
-cmake --build build --target test_tir5
-./build/c/test_tir5
+lsusb -d 131d:0159
 ```
 
-Run the Python unit tests from the managed environment:
+Then make sure that your user can write to `/dev/uinput`:
 
 ```sh
-cd /Users/philip/src/OpenTrackIR/python
+test -w /dev/uinput && echo "uinput is writable"
+getfacl /dev/uinput
+```
+
+If `/dev/uinput` is not available, run these commands:
+
+```sh
+sudo modprobe uinput
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput
+```
+
+Disconnect and reconnect the TrackIR camera. Restart the computer if the camera
+or `/dev/uinput` is still not available. Do not run OpenTrackIR as root.
+
+If X-keys fast mode reports an access error, reconnect the pedal after installing
+or upgrading OpenTrackIR. The permission rule supports USB IDs `05f3:042c` and
+`05f3:0438` and grants access only to the pedal-report interface.
+
+Other Hyprland installations that use `hyprland.conf` need this binding:
+
+```ini
+bind = SHIFT, F7, global, org.gnome.opentrackir:toggle-mouse
+```
+
+For more Linux setup information, read the [Linux README](nix/README.md).
+
+### Background operation
+
+OpenTrackIR continues to track head movement when you hide the window. The app
+stops the video preview and telemetry updates while the window is hidden. This
+reduces CPU use.
+
+On Linux, use the tray menu to show or quit the app. If the desktop has no tray,
+start OpenTrackIR again to show the existing window.
+
+### Repository directories
+
+- `python/` contains USB tests, packet tools, logs, and protocol experiments.
+- `c/` contains the shared C library and its tests.
+- `cpp/` contains native C++ test programs and the OpenCV preview.
+- `mac/` contains the SwiftUI macOS app and the Quartz mouse adapter.
+- `win/` contains the WinUI Windows app and Windows input adapters.
+- `nix/` contains the GTK Linux app, the uinput adapter, and Linux permission files.
+- `packaging/` contains operating-system package files.
+- `tmp/` contains temporary test output.
+
+### Native build
+
+The native build requires CMake, a C compiler, and `libusb-1.0`. OpenCV is
+optional. Only the C++ preview uses OpenCV.
+
+Run these commands from the repository root:
+
+```sh
+cmake -S . -B build -DOPENTRACKIR_BUILD_PREVIEW=OFF
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+Run the C stream tool with this command:
+
+```sh
+./build/c/opentrackir_stream_dump
+```
+
+### Linux development build
+
+The Linux app also requires Meson, Ninja, pkg-config, GTK 4, libadwaita, and
+libevdev.
+
+Run these commands from the repository root:
+
+```sh
+opentrackir_prefix="$PWD/build/linux-prefix"
+
+cmake -S . -B build \
+  -DOPENTRACKIR_BUILD_PREVIEW=OFF \
+  -DCMAKE_INSTALL_PREFIX="$opentrackir_prefix"
+cmake --build build
+ctest --test-dir build --output-on-failure
+cmake --install build
+
+meson setup nix/builddir nix \
+  -Dpkg_config_path="$opentrackir_prefix/lib/pkgconfig"
+meson compile -C nix/builddir
+meson test -C nix/builddir --print-errorlogs
+meson devenv -C nix/builddir ./src/opentrackir
+```
+
+### macOS development build
+
+Open `mac/OpenTrackIR.xcodeproj` in Xcode. Select the `OpenTrackIR` scheme, and
+then select **Run**.
+
+Use these commands for a terminal build and the macOS unit tests:
+
+```sh
+xcodebuild \
+  -project mac/OpenTrackIR.xcodeproj \
+  -scheme OpenTrackIR \
+  -destination 'platform=macOS' \
+  build
+
+xcodebuild \
+  -project mac/OpenTrackIR.xcodeproj \
+  -scheme OpenTrackIR \
+  -destination 'platform=macOS' \
+  test -only-testing:OpenTrackIRTests
+```
+
+### Python protocol tests
+
+Install [uv](https://docs.astral.sh/uv/). Then run these commands:
+
+```sh
+cd python
 uv sync
 uv run python -m unittest discover -s tests -v
 ```
 
-Run the C text streaming harness:
+Use these commands to test the camera protocol:
 
 ```sh
-cd /Users/philip/src/OpenTrackIR
-cmake -S . -B build
-cmake --build build --target opentrackir_stream_dump
-./build/c/opentrackir_stream_dump
-./build/c/opentrackir_stream_dump --fps 60
+uv run python trackir_tir5v3.py log --log ../tmp/logs/log-manual.log
+uv run python trackir_tir5v3.py opencv --log ../tmp/logs/opencv-manual.log
 ```
 
-Run the C++ OpenCV preview harness:
+The `log` command prints the pointer coordinates. The `opencv` command shows a
+video window and a centroid marker.
 
-```sh
-cd /Users/philip/src/OpenTrackIR
-cmake -S . -B build
-cmake --build build --target opentrackir_preview
-./build/cpp/opentrackir_preview
-./build/cpp/opentrackir_preview --fps 60
-```
+### Development goals
+
+- Document the TrackIR protocol.
+- Start and stop the camera without a vendor SDK.
+- Keep shared behavior in portable code.
+- Keep operating-system code in its platform directory.
+- Add a focused unit test for each new piece of logic.
+- Keep the app small, fast, and efficient.

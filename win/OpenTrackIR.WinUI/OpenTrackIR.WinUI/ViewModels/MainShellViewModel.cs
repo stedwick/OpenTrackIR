@@ -43,6 +43,9 @@ namespace OpenTrackIR.WinUI.ViewModels
         private bool _isShuttingDown;
         private bool _isPreviewApplyQueued;
         private CancellationTokenSource? _timeoutCancellationSource;
+        private DispatcherQueueTimer? _timeoutCountdownTimer;
+        private DateTimeOffset? _timeoutDeadline;
+        private bool _isWindowVisible = true;
 
         public MainShellViewModel()
             : this(new LocalSettingsStore(), new NativeTrackIRRuntimeController(), AppServices.TrayService)
@@ -92,10 +95,23 @@ namespace OpenTrackIR.WinUI.ViewModels
 
         public string TimeoutHelperText => TrackIRUiLogic.TimeoutHelperText;
 
+        public string TimeoutCountdownText => TrackIRUiLogic.TimeoutCountdownLabel(
+            IsTrackIREnabled,
+            IsTimeoutEnabled,
+            _timeoutDeadline,
+            DateTimeOffset.UtcNow
+        );
+
         public bool IsAdvancedExpanded
         {
             get => _isAdvancedExpanded;
-            set => SetProperty(ref _isAdvancedExpanded, value);
+            set
+            {
+                if (SetProperty(ref _isAdvancedExpanded, value))
+                {
+                    SyncTimeoutCountdownTimer();
+                }
+            }
         }
 
         public bool ShowDetectedBlobCenter
@@ -307,6 +323,8 @@ namespace OpenTrackIR.WinUI.ViewModels
 
         public void SetPresentationState(bool isWindowVisible, bool isAppActive)
         {
+            _isWindowVisible = isWindowVisible;
+            SyncTimeoutCountdownTimer();
             _runtimeController.UpdatePresentationState(new TrackIRPresentationState(isWindowVisible, isAppActive));
         }
 
@@ -350,6 +368,7 @@ namespace OpenTrackIR.WinUI.ViewModels
             _timeoutCancellationSource?.Cancel();
             _timeoutCancellationSource?.Dispose();
             _timeoutCancellationSource = null;
+            StopTimeoutCountdownTimer();
             _runtimeController.Stop();
         }
 
@@ -609,6 +628,11 @@ namespace OpenTrackIR.WinUI.ViewModels
             {
                 OnPropertyChanged(nameof(TimeoutDurationVisibility));
             }
+            if (previousControlState.IsTrackIREnabled != _controlState.IsTrackIREnabled ||
+                previousControlState.IsTimeoutEnabled != _controlState.IsTimeoutEnabled)
+            {
+                OnPropertyChanged(nameof(TimeoutCountdownText));
+            }
 
             if (previousControlState.IsVideoFlipHorizontalEnabled != _controlState.IsVideoFlipHorizontalEnabled)
             {
@@ -690,19 +714,24 @@ namespace OpenTrackIR.WinUI.ViewModels
             _timeoutCancellationSource?.Cancel();
             _timeoutCancellationSource?.Dispose();
             _timeoutCancellationSource = null;
+            _timeoutDeadline = null;
+            SyncTimeoutCountdownTimer();
 
             if (!TrackIRRuntimeLogic.ShouldScheduleTimeout(_controlState))
             {
                 return;
             }
 
+            int timeoutSeconds = _controlState.TimeoutSeconds;
+            _timeoutDeadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            SyncTimeoutCountdownTimer();
             CancellationTokenSource cancellationSource = new();
             _timeoutCancellationSource = cancellationSource;
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(_controlState.TimeoutSeconds), cancellationSource.Token)
+                    await Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), cancellationSource.Token)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
@@ -732,6 +761,46 @@ namespace OpenTrackIR.WinUI.ViewModels
                     ApplyTimeout();
                 });
             });
+        }
+
+        private void SyncTimeoutCountdownTimer()
+        {
+            StopTimeoutCountdownTimer();
+            OnPropertyChanged(nameof(TimeoutCountdownText));
+
+            if (_dispatcherQueue is null ||
+                !_isWindowVisible ||
+                !IsAdvancedExpanded ||
+                !_timeoutDeadline.HasValue)
+            {
+                return;
+            }
+
+            _timeoutCountdownTimer = _dispatcherQueue.CreateTimer();
+            _timeoutCountdownTimer.Interval = TimeSpan.FromSeconds(1);
+            _timeoutCountdownTimer.Tick += OnTimeoutCountdownTick;
+            _timeoutCountdownTimer.Start();
+        }
+
+        private void StopTimeoutCountdownTimer()
+        {
+            if (_timeoutCountdownTimer is null)
+            {
+                return;
+            }
+
+            _timeoutCountdownTimer.Stop();
+            _timeoutCountdownTimer.Tick -= OnTimeoutCountdownTick;
+            _timeoutCountdownTimer = null;
+        }
+
+        private void OnTimeoutCountdownTick(DispatcherQueueTimer sender, object args)
+        {
+            OnPropertyChanged(nameof(TimeoutCountdownText));
+            if (TrackIRUiLogic.TimeoutRemainingSeconds(_timeoutDeadline, DateTimeOffset.UtcNow) == 0)
+            {
+                StopTimeoutCountdownTimer();
+            }
         }
 
         private void ApplyTimeout()

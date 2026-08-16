@@ -1,0 +1,65 @@
+# Maintainer: Philip Brocoum <https://github.com/stedwick>
+
+pkgname=opentrackir
+pkgver=0.2.3
+pkgrel=4
+pkgdesc="Infrared head mouse for NaturalPoint TrackIR cameras"
+arch=('x86_64')
+url="https://github.com/stedwick/OpenTrackIR"
+license=('GPL-3.0-or-later')
+options=('!debug')
+provides=('libopentrackir.so')
+depends=(
+  'dconf'
+  'glib2'
+  'glibc'
+  'gtk4'
+  'hicolor-icon-theme'
+  'libadwaita'
+  'libevdev'
+  'libgcc'
+  'libusb'
+  'systemd-libs'
+)
+makedepends=(
+  'cmake'
+  'git'
+  'meson'
+)
+checkdepends=(
+  'appstream'
+  'desktop-file-utils'
+)
+install=opentrackir.install
+
+_source_commit=${OPENTRACKIR_SOURCE_COMMIT:-fe96d498c8e0805905ff83f05738063a6042e842}
+_source_url=${OPENTRACKIR_SOURCE_URL:-https://github.com/stedwick/OpenTrackIR.git}
+source=(
+  "OpenTrackIR::git+${_source_url}#commit=${_source_commit}"
+)
+sha256sums=(
+  'SKIP'
+)
+
+build() {
+  cmake -S OpenTrackIR -B build-core \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX="$srcdir/core-prefix" \
+    -DOPENTRACKIR_BUILD_PREVIEW=OFF
+  cmake --build build-core
+  cmake --install build-core
+
+  arch-meson OpenTrackIR/nix build-app \
+    -Dpkg_config_path="$srcdir/core-prefix/lib/pkgconfig"
+  meson compile -C build-app
+}
+
+check() {
+  ctest --test-dir build-core --output-on-failure
+  meson test -C build-app --print-errorlogs
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build-core --prefix /usr
+  DESTDIR="$pkgdir" meson install -C build-app --no-rebuild
+}

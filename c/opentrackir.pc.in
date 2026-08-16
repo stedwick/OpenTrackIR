@@ -1,0 +1,10 @@
+prefix=${pcfiledir}/@OPENTRACKIR_PC_PREFIX_RELATIVE@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: OpenTrackIR
+Description: Shared TrackIR protocol, session, and mouse tracking library
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lopentrackir
+Cflags: -I${includedir}

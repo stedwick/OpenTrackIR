@@ -139,6 +139,26 @@ namespace OpenTrackIR.WinUI.Tests
         }
 
         [Fact]
+        public void Timeout_countdown_uses_deadline_and_rounds_up_partial_seconds()
+        {
+            DateTimeOffset now = DateTimeOffset.FromUnixTimeSeconds(1_000);
+
+            Assert.Equal(28_801, TrackIRUiLogic.TimeoutRemainingSeconds(now.AddSeconds(28_800.2), now));
+            Assert.Equal(
+                "Remaining: 08:00:00",
+                TrackIRUiLogic.TimeoutCountdownLabel(true, true, now.AddSeconds(28_800), now)
+            );
+            Assert.Equal(
+                "Starts when TrackIR is enabled.",
+                TrackIRUiLogic.TimeoutCountdownLabel(false, true, null, now)
+            );
+            Assert.Equal(
+                "Timeout is disabled.",
+                TrackIRUiLogic.TimeoutCountdownLabel(true, false, null, now)
+            );
+        }
+
+        [Fact]
         public void DashboardLayoutForWidth_uses_expected_breakpoints()
         {
             Assert.Equal(DashboardLayoutMode.Narrow, TrackIRUiLogic.DashboardLayoutForWidth(700));

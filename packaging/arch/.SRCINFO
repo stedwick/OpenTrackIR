@@ -1,0 +1,30 @@
+pkgbase = opentrackir
+	pkgdesc = Infrared head mouse for NaturalPoint TrackIR cameras
+	pkgver = 0.2.3
+	pkgrel = 1
+	url = https://github.com/stedwick/OpenTrackIR
+	install = opentrackir.install
+	arch = x86_64
+	license = GPL-3.0-or-later
+	checkdepends = appstream
+	checkdepends = desktop-file-utils
+	makedepends = cmake
+	makedepends = git
+	makedepends = meson
+	depends = dconf
+	depends = glib2
+	depends = glibc
+	depends = gtk4
+	depends = hicolor-icon-theme
+	depends = libadwaita
+	depends = libevdev
+	depends = libgcc
+	depends = libusb
+	provides = libopentrackir.so
+	options = !debug
+	source = OpenTrackIR::git+https://github.com/stedwick/OpenTrackIR.git#commit=9fe5c36fdaa651a74e8432a6dcde0d53531f816b
+	source = opentrackir-soname.patch
+	sha256sums = SKIP
+	sha256sums = dcb1c8c20e5452c8b9f2fa24dfde9266eb9f79f20a9508f9510e798c16a4a0c1
+
+pkgname = opentrackir

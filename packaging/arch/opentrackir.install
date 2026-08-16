@@ -1,0 +1,24 @@
+post_install() {
+  printf '%s\n' \
+    'OpenTrackIR uses the uinput kernel module for pointer movement.' \
+    'Run `sudo modprobe uinput` to load it now, or reboot.' \
+    'Reconnect the TrackIR and any X-keys pedal after installation so their device ACLs are refreshed.'
+
+  if [ -e /etc/udev/rules.d/70-opentrackir-trackir.rules ]; then
+    printf '%s\n' \
+      'An administrator TrackIR rule exists under /etc and overrides the packaged rule.' \
+      'If it is an old OpenTrackIR development copy, remove it after installation.'
+  fi
+
+  if [ -e /etc/udev/rules.d/70-opentrackir-uinput.rules ]; then
+    printf '%s\n' \
+      'An administrator uinput rule exists under /etc and overrides the packaged rule.' \
+      'If it is an old OpenTrackIR development copy, remove it after installation.'
+  fi
+
+  if [ -e /etc/udev/rules.d/70-opentrackir-xkeys.rules ]; then
+    printf '%s\n' \
+      'An administrator X-keys rule exists under /etc and overrides the packaged rule.' \
+      'If it is an old OpenTrackIR development copy, remove it after installation.'
+  fi
+}

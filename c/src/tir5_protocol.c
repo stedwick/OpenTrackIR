@@ -45,6 +45,8 @@ const char *otir_status_string(otir_status status) {
             return "dependency_unavailable";
         case OTIR_STATUS_UNSUPPORTED:
             return "unsupported";
+        case OTIR_STATUS_PERMISSION_DENIED:
+            return "permission_denied";
         default:
             return "unknown";
     }

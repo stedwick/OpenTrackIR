@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.gnome.opentrackir</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>OpenTrackIR</name>
+  <summary>Move the pointer with TrackIR</summary>
+  <description>
+    <p>
+      OpenTrackIR turns a NaturalPoint TrackIR camera into an infrared head
+      mouse. It is designed to make pointer control available to people who
+      use head movement as an accessibility input.
+    </p>
+    <p>
+      The Linux app provides a live camera preview, adjustable tracking and
+      smoothing controls, and mouse output through the standard uinput kernel
+      interface. It can continue tracking in the background without keeping
+      the preview active.
+    </p>
+  </description>
+
+  <developer id="github.com.stedwick">
+    <name>Philip Brocoum</name>
+  </developer>
+
+  <url type="homepage">https://github.com/stedwick/OpenTrackIR</url>
+  <url type="vcs-browser">https://github.com/stedwick/OpenTrackIR</url>
+  <url type="bugtracker">https://github.com/stedwick/OpenTrackIR/issues</url>
+  <url type="help">https://github.com/stedwick/OpenTrackIR/tree/main/nix#readme</url>
+  <url type="contribute">https://github.com/stedwick/OpenTrackIR</url>
+
+  <translation type="gettext">opentrackir</translation>
+  <launchable type="desktop-id">org.gnome.opentrackir.desktop</launchable>
+  <content_rating type="oars-1.1" />
+</component>

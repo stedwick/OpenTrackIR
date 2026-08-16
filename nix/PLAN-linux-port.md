@@ -9,6 +9,8 @@ As of 2026-08-16, the portable and Linux-local foundations build successfully on
 - All nine Python protocol tests pass in the locked Python 3.12 environment.
 - The GNOME starter app builds with Meson against GTK 4 and libadwaita.
 - Its desktop file, AppStream metadata, and GSettings schema validation tests pass.
+- The host GTK app links the installed shared library, streams from the physical TrackIR through an active-seat udev rule, and renders a conditional native grayscale preview.
+- Linux session state, display policy, and metadata tests pass without requiring hardware.
 
 The C library is therefore already compiling on Linux. What is not done is making it an installable dependency that the GNOME Builder/Flatpak build can discover and link. That integration boundary is the first implementation chunk.
 
@@ -202,4 +204,4 @@ Acceptance:
 
 ## Immediate next step
 
-Implement Chunk 1 only. It is small, hardware-independent, and gives every later chunk one stable way to consume the shared library.
+Implement Chunk 5: the dedicated libevdev/uinput cursor-output worker and its narrowly scoped host permission setup.

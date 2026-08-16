@@ -15,3 +15,13 @@ session_state_test = executable(
 )
 
 test('OpenTrackIR session state', session_state_test)
+
+display_logic_test = executable(
+  'opentrackir-display-logic-test',
+  'test-display-logic.c',
+  '../src/opentrackir-display-logic.c',
+  include_directories: include_directories('../src'),
+  dependencies: [dependency('glib-2.0'), opentrackir_dep],
+)
+
+test('OpenTrackIR display logic', display_logic_test)

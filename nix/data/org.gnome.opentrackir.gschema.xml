@@ -1,5 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="opentrackir">
-	<schema id="org.gnome.opentrackir" path="/org/gnome/opentrackir/">
-	</schema>
+  <schema id="org.gnome.opentrackir" path="/org/gnome/opentrackir/">
+    <key name="camera-enabled" type="b">
+      <default>false</default>
+      <summary>Enable the TrackIR camera</summary>
+    </key>
+    <key name="video-enabled" type="b">
+      <default>true</default>
+      <summary>Show the camera preview</summary>
+    </key>
+    <key name="tracking-frames-per-second" type="d">
+      <range min="1.0" max="240.0"/>
+      <default>60.0</default>
+      <summary>Maximum tracking frames per second</summary>
+    </key>
+    <key name="minimum-blob-area-points" type="i">
+      <range min="1" max="10000"/>
+      <default>100</default>
+      <summary>Minimum tracked blob area</summary>
+    </key>
+    <key name="centroid-mode" type="i">
+      <range min="1" max="5"/>
+      <default>5</default>
+      <summary>Shared centroid calculation mode</summary>
+    </key>
+    <key name="mouse-enabled" type="b">
+      <default>true</default>
+      <summary>Enable mouse movement</summary>
+    </key>
+    <key name="mouse-speed" type="d">
+      <range min="0.1" max="10.0"/>
+      <default>2.0</default>
+      <summary>Mouse movement speed</summary>
+    </key>
+    <key name="mouse-smoothing" type="i">
+      <range min="1" max="10"/>
+      <default>3</default>
+      <summary>Mouse smoothing amount</summary>
+    </key>
+    <key name="mouse-dead-zone" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>0.04</default>
+      <summary>Mouse movement dead zone</summary>
+    </key>
+    <key name="avoid-mouse-jumps" type="b">
+      <default>true</default>
+      <summary>Suppress sudden mouse jumps</summary>
+    </key>
+    <key name="mouse-jump-threshold-pixels" type="i">
+      <range min="1" max="1000"/>
+      <default>50</default>
+      <summary>Mouse jump suppression threshold</summary>
+    </key>
+    <key name="horizontal-flip" type="b">
+      <default>false</default>
+      <summary>Flip horizontal movement</summary>
+    </key>
+    <key name="vertical-flip" type="b">
+      <default>false</default>
+      <summary>Flip vertical movement</summary>
+    </key>
+    <key name="rotation-degrees" type="d">
+      <range min="-180.0" max="180.0"/>
+      <default>0.0</default>
+      <summary>Movement rotation in degrees</summary>
+    </key>
+    <key name="keep-awake-seconds" type="i">
+      <range min="0" max="3600"/>
+      <default>29</default>
+      <summary>Keep-awake interval in seconds</summary>
+    </key>
+    <key name="timeout-enabled" type="b">
+      <default>true</default>
+      <summary>Automatically disable tracking</summary>
+    </key>
+    <key name="timeout-seconds" type="i">
+      <range min="1" max="604800"/>
+      <default>28800</default>
+      <summary>Tracking timeout in seconds</summary>
+    </key>
+  </schema>
 </schemalist>

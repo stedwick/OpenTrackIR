@@ -8,6 +8,9 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `org.gnome.opentrackir.json`: GNOME Builder Flatpak manifest using the GNOME SDK and runtime.
 - `src/main.c`: gettext setup and `AdwApplication` entrypoint.
 - `src/opentrackir-application.c`: application activation, application actions, shortcuts, and about dialog.
+- `src/opentrackir-session-controller.c`: shared-session ownership, bounded telemetry polling, and runtime camera configuration.
+- `src/opentrackir-session-state.c`: pure normalization of shared C session snapshots for the Linux UI.
+- `src/opentrackir-display-logic.c`: pure preview, timeout, and telemetry formatting policy.
 - `src/opentrackir-window.c`: `AdwApplicationWindow` implementation and GTK template bindings.
 - `src/opentrackir-window.ui`: main window template and primary menu.
 - `src/shortcuts-dialog.ui`: keyboard-shortcut resource.
@@ -15,7 +18,7 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, and application icons.
 - `po/`: gettext source list and language catalog configuration.
 
-The project is currently the GNOME Builder starter application. It creates one window containing a `Hello, World!` label. The shared TrackIR C library, hardware session, preview, settings, and Linux mouse output are not connected yet. Some generated template metadata remains placeholder text, and the Preferences and Keyboard Shortcuts menu actions are referenced by the UI but are not registered yet.
+The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, and advanced controls. TrackIR USB access uses the repository udev rule. Linux mouse output and background/tray lifecycle are not connected yet. Some generated template metadata remains placeholder text.
 
 ## Linux-specific rules
 
@@ -59,6 +62,7 @@ cd nix
 meson setup builddir
 meson compile -C builddir
 meson test -C builddir --print-errorlogs
+meson devenv -C builddir ./src/opentrackir
 ```
 
 Use a fresh build directory or `meson setup --reconfigure builddir` after changing build definitions. Validate both the host build and GNOME Builder Flatpak build when changing dependencies, sandbox permissions, packaging, or hardware access.

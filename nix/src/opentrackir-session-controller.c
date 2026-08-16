@@ -112,7 +112,7 @@ opentrackir_session_controller_init (OpentrackirSessionController *self)
 		return;
 	}
 
-	/* Preview generation remains off until the native preview chunk consumes it. */
+	/* The window enables preview publication only while it is visible. */
 	otir_trackir_session_set_video_enabled (self->session, false);
 }
 
@@ -186,4 +186,61 @@ opentrackir_session_controller_stop (OpentrackirSessionController *self)
 
 	otir_trackir_session_stop (self->session, true);
 	opentrackir_session_controller_refresh (self);
+}
+
+void
+opentrackir_session_controller_set_video_enabled (OpentrackirSessionController *self,
+                                                  gboolean                      enabled)
+{
+	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
+
+	if (self->session != NULL)
+		otir_trackir_session_set_video_enabled (self->session, enabled);
+}
+
+void
+opentrackir_session_controller_set_tracking_frames_per_second (OpentrackirSessionController *self,
+                                                               double                        frames_per_second)
+{
+	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
+
+	if (self->session != NULL)
+		otir_trackir_session_set_maximum_tracking_frames_per_second (self->session,
+		                                                             frames_per_second);
+}
+
+void
+opentrackir_session_controller_set_minimum_blob_area_points (OpentrackirSessionController *self,
+                                                             int                           minimum_blob_area_points)
+{
+	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
+
+	if (self->session != NULL)
+		otir_trackir_session_set_minimum_blob_area_points (self->session,
+		                                                      minimum_blob_area_points);
+}
+
+void
+opentrackir_session_controller_set_centroid_mode (OpentrackirSessionController *self,
+                                                  otir_tir5v3_centroid_mode     mode)
+{
+	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
+
+	if (self->session != NULL)
+		otir_trackir_session_set_centroid_mode (self->session, mode);
+}
+
+gboolean
+opentrackir_session_controller_copy_preview_frame (OpentrackirSessionController *self,
+                                                   guint8                        *frame,
+                                                   gsize                          capacity,
+                                                   guint64                       *generation)
+{
+	g_return_val_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self), FALSE);
+
+	return self->session != NULL &&
+	       otir_trackir_session_copy_preview_frame (self->session,
+	                                                  frame,
+	                                                  capacity,
+	                                                  generation);
 }

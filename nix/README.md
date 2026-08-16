@@ -18,6 +18,7 @@ meson setup nix/builddir nix \
   -Dpkg_config_path="$opentrackir_prefix/lib/pkgconfig"
 meson compile -C nix/builddir
 meson test -C nix/builddir --print-errorlogs
+meson devenv -C nix/builddir ./src/opentrackir
 ```
 
 After changing Meson build definitions, reconfigure with the same pkg-config path:

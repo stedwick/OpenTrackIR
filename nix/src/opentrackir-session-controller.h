@@ -16,5 +16,22 @@ gboolean                      opentrackir_session_controller_can_start (Opentrac
 gboolean                      opentrackir_session_controller_can_stop  (OpentrackirSessionController *self);
 void                          opentrackir_session_controller_start     (OpentrackirSessionController *self);
 void                          opentrackir_session_controller_stop      (OpentrackirSessionController *self);
+void                          opentrackir_session_controller_set_video_enabled
+                                                                      (OpentrackirSessionController *self,
+                                                                       gboolean                      enabled);
+void                          opentrackir_session_controller_set_tracking_frames_per_second
+                                                                      (OpentrackirSessionController *self,
+                                                                       double                        frames_per_second);
+void                          opentrackir_session_controller_set_minimum_blob_area_points
+                                                                      (OpentrackirSessionController *self,
+                                                                       int                           minimum_blob_area_points);
+void                          opentrackir_session_controller_set_centroid_mode
+                                                                      (OpentrackirSessionController *self,
+                                                                       otir_tir5v3_centroid_mode     mode);
+gboolean                      opentrackir_session_controller_copy_preview_frame
+                                                                      (OpentrackirSessionController *self,
+                                                                       guint8                        *frame,
+                                                                       gsize                          capacity,
+                                                                       guint64                       *generation);
 
 G_END_DECLS

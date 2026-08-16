@@ -389,7 +389,7 @@
                           </object>
                         </child>
                         <child>
-                          <object class="AdwActionRow">
+                          <object class="AdwActionRow" id="timeout_duration_row">
                             <property name="title" translatable="yes">Timeout Duration</property>
                             <property name="subtitle" translatable="yes">Seconds before TrackIR turns off.</property>
                             <child type="suffix">

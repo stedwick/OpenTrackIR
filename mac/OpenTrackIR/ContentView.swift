@@ -697,6 +697,30 @@ struct ContentView: View {
                     suffix: "sec",
                     isEnabled: isTimeoutEnabled
                 )
+
+                Group {
+                    if isTrackIREnabled,
+                       isTimeoutEnabled,
+                       runtimeController.timeoutDeadline != nil {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(trackIRTimeoutCountdownLabel(
+                                isTrackIREnabled: isTrackIREnabled,
+                                isTimeoutEnabled: isTimeoutEnabled,
+                                deadline: runtimeController.timeoutDeadline,
+                                now: context.date
+                            ))
+                        }
+                    } else {
+                        Text(trackIRTimeoutCountdownLabel(
+                            isTrackIREnabled: isTrackIREnabled,
+                            isTimeoutEnabled: isTimeoutEnabled,
+                            deadline: runtimeController.timeoutDeadline,
+                            now: .now
+                        ))
+                    }
+                }
+                .font(.system(.body, design: .monospaced).weight(.semibold))
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -1195,6 +1219,35 @@ func trackIRMouseBackendSpeed(controlSpeed: Double) -> Double {
 }
 
 let trackIRTimeoutHelperText = "8 hours = 60 sec x 60 min x 8 hrs = 28800 sec"
+
+func trackIRTimeoutRemainingSeconds(deadline: Date?, now: Date) -> Int? {
+    guard let deadline else {
+        return nil
+    }
+
+    return max(Int(ceil(deadline.timeIntervalSince(now))), 0)
+}
+
+func trackIRTimeoutCountdownLabel(
+    isTrackIREnabled: Bool,
+    isTimeoutEnabled: Bool,
+    deadline: Date?,
+    now: Date
+) -> String {
+    guard isTimeoutEnabled else {
+        return "Timeout is disabled."
+    }
+
+    guard isTrackIREnabled,
+          let remainingSeconds = trackIRTimeoutRemainingSeconds(deadline: deadline, now: now) else {
+        return "Starts when TrackIR is enabled."
+    }
+
+    let hours = remainingSeconds / 3600
+    let minutes = (remainingSeconds % 3600) / 60
+    let seconds = remainingSeconds % 60
+    return String(format: "Remaining: %02d:%02d:%02d", hours, minutes, seconds)
+}
 
 func previewVideoTransform(
     flipHorizontal: Bool,

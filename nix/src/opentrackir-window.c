@@ -39,6 +39,7 @@ struct _OpentrackirWindow
 	GtkSpinButton *rotation_spin;
 	GtkSpinButton *keep_awake_spin;
 	GtkSpinButton *timeout_spin;
+	AdwActionRow *timeout_duration_row;
 	AdwActionRow *phase_row;
 	AdwActionRow *mouse_status_row;
 	AdwActionRow *background_status_row;
@@ -51,6 +52,7 @@ struct _OpentrackirWindow
 	OpentrackirSessionController *controller;
 	GSettings *settings;
 	guint preview_source_id;
+	guint timeout_countdown_source_id;
 	guint64 last_preview_generation;
 };
 
@@ -85,6 +87,7 @@ phase_label (OpentrackirSessionPhase phase)
 
 static void update_preview_policy (OpentrackirWindow *self);
 static void update_background_status (OpentrackirWindow *self);
+static void update_timeout_countdown_policy (OpentrackirWindow *self);
 
 gboolean
 opentrackir_window_is_visible_for_work (OpentrackirWindow *self)
@@ -269,6 +272,75 @@ update_mouse_state (OpentrackirWindow *self)
 	adw_action_row_set_subtitle (self->mouse_status_row, message);
 }
 
+static gboolean
+timeout_countdown_should_tick (OpentrackirWindow *self)
+{
+	return opentrackir_window_is_visible_for_work (self) &&
+	       g_settings_get_boolean (self->settings, "camera-enabled") &&
+	       g_settings_get_boolean (self->settings, "timeout-enabled");
+}
+
+static void
+update_timeout_countdown_label (OpentrackirWindow *self)
+{
+	GtkApplication *application;
+	g_autofree char *remaining_text = NULL;
+	const char *text;
+	guint remaining_seconds = 0;
+
+	application = gtk_window_get_application (GTK_WINDOW (self));
+	if (OPENTRACKIR_IS_APPLICATION (application))
+	{
+		remaining_seconds =
+			opentrackir_application_timeout_remaining_seconds (
+				OPENTRACKIR_APPLICATION (application));
+	}
+
+	if (!g_settings_get_boolean (self->settings, "timeout-enabled"))
+		text = _("Timeout is disabled.");
+	else if (!g_settings_get_boolean (self->settings, "camera-enabled"))
+		text = _("Starts when TrackIR is enabled.");
+	else
+	{
+		remaining_text = opentrackir_format_timeout_remaining (remaining_seconds);
+		text = remaining_text;
+	}
+	adw_action_row_set_subtitle (self->timeout_duration_row, text);
+}
+
+static gboolean
+timeout_countdown_tick (gpointer user_data)
+{
+	OpentrackirWindow *self = user_data;
+
+	update_timeout_countdown_label (self);
+	if (!timeout_countdown_should_tick (self))
+	{
+		self->timeout_countdown_source_id = 0;
+		return G_SOURCE_REMOVE;
+	}
+	return G_SOURCE_CONTINUE;
+}
+
+static void
+update_timeout_countdown_policy (OpentrackirWindow *self)
+{
+	gboolean should_tick;
+
+	update_timeout_countdown_label (self);
+	should_tick = timeout_countdown_should_tick (self);
+	if (should_tick && self->timeout_countdown_source_id == 0)
+	{
+		self->timeout_countdown_source_id =
+			g_timeout_add_seconds (1, timeout_countdown_tick, self);
+	}
+	else if (!should_tick && self->timeout_countdown_source_id != 0)
+	{
+		g_source_remove (self->timeout_countdown_source_id);
+		self->timeout_countdown_source_id = 0;
+	}
+}
+
 static void
 controller_state_changed (OpentrackirSessionController *controller,
                           OpentrackirWindow            *self)
@@ -292,6 +364,10 @@ settings_changed (GSettings          *settings,
 {
 	if (g_str_equal (key, "background-enabled"))
 		update_background_status (self);
+	if (g_str_equal (key, "camera-enabled") ||
+	    g_str_equal (key, "timeout-enabled") ||
+	    g_str_equal (key, "timeout-seconds"))
+		update_timeout_countdown_policy (self);
 	if (g_str_equal (key, "camera-enabled") ||
 	    g_str_equal (key, "mouse-enabled") ||
 	    g_str_equal (key, "keep-awake-seconds"))
@@ -329,6 +405,7 @@ window_mapped_changed (OpentrackirWindow *self,
 		update_preview_policy (self);
 	}
 	update_background_status (self);
+	update_timeout_countdown_policy (self);
 	g_signal_emit (self, signals[WORK_VISIBILITY_CHANGED], 0);
 }
 
@@ -339,6 +416,7 @@ toplevel_state_changed (GdkToplevel        *toplevel,
 {
 	update_preview_policy (self);
 	update_background_status (self);
+	update_timeout_countdown_policy (self);
 	g_signal_emit (self, signals[WORK_VISIBILITY_CHANGED], 0);
 }
 
@@ -449,6 +527,11 @@ opentrackir_window_dispose (GObject *object)
 		g_source_remove (self->preview_source_id);
 		self->preview_source_id = 0;
 	}
+	if (self->timeout_countdown_source_id != 0)
+	{
+		g_source_remove (self->timeout_countdown_source_id);
+		self->timeout_countdown_source_id = 0;
+	}
 	g_clear_object (&self->settings);
 	g_clear_object (&self->controller);
 
@@ -496,6 +579,7 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, rotation_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, keep_awake_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_spin);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_duration_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, phase_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, background_status_row);
@@ -587,5 +671,6 @@ opentrackir_window_new (GtkApplication               *application,
 	update_state (self);
 	update_mouse_state (self);
 	update_background_status (self);
+	update_timeout_countdown_policy (self);
 	return self;
 }

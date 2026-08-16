@@ -180,6 +180,31 @@ struct ContentViewTests {
         #expect(trackIRTimeoutHelperText == "8 hours = 60 sec x 60 min x 8 hrs = 28800 sec")
     }
 
+    @Test func timeoutCountdownUsesDeadlineAndRoundsUpPartialSeconds() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let deadline = now.addingTimeInterval(28_800.2)
+
+        #expect(trackIRTimeoutRemainingSeconds(deadline: deadline, now: now) == 28_801)
+        #expect(trackIRTimeoutCountdownLabel(
+            isTrackIREnabled: true,
+            isTimeoutEnabled: true,
+            deadline: now.addingTimeInterval(28_800),
+            now: now
+        ) == "Remaining: 08:00:00")
+        #expect(trackIRTimeoutCountdownLabel(
+            isTrackIREnabled: false,
+            isTimeoutEnabled: true,
+            deadline: nil,
+            now: now
+        ) == "Starts when TrackIR is enabled.")
+        #expect(trackIRTimeoutCountdownLabel(
+            isTrackIREnabled: true,
+            isTimeoutEnabled: false,
+            deadline: nil,
+            now: now
+        ) == "Timeout is disabled.")
+    }
+
     @Test func nativeBlobCentroidModeMappingMatchesSharedCEnum() {
         #expect(trackIRNativeBlobCentroidMode() == OTIR_TIR5V3_CENTROID_MODE_REGULARIZED_BINARY)
     }

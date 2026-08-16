@@ -16,6 +16,9 @@ gboolean opentrackir_preview_should_copy      (gboolean                     prev
 gboolean opentrackir_timeout_should_run       (gboolean                     camera_enabled,
                                                gboolean                     timeout_enabled,
                                                guint                        timeout_seconds);
+guint    opentrackir_timeout_remaining_seconds (gint64                       deadline_microseconds,
+                                                gint64                       now_microseconds);
+char    *opentrackir_format_timeout_remaining (guint                        remaining_seconds);
 char    *opentrackir_format_frame_rate        (gboolean                     has_frame_rate,
                                                double                       frame_rate);
 char    *opentrackir_format_packet_type       (gboolean                     has_packet_type,

@@ -242,6 +242,40 @@ namespace OpenTrackIR.WinUI.Models
             return isEnabled ? "#31C48D" : "#7A8797";
         }
 
+        public static int? TimeoutRemainingSeconds(DateTimeOffset? deadline, DateTimeOffset now)
+        {
+            if (!deadline.HasValue)
+            {
+                return null;
+            }
+
+            return Math.Max((int)Math.Ceiling((deadline.Value - now).TotalSeconds), 0);
+        }
+
+        public static string TimeoutCountdownLabel(
+            bool isTrackIREnabled,
+            bool isTimeoutEnabled,
+            DateTimeOffset? deadline,
+            DateTimeOffset now
+        )
+        {
+            if (!isTimeoutEnabled)
+            {
+                return "Timeout is disabled.";
+            }
+
+            int? remainingSeconds = TimeoutRemainingSeconds(deadline, now);
+            if (!isTrackIREnabled || !remainingSeconds.HasValue)
+            {
+                return "Starts when TrackIR is enabled.";
+            }
+
+            int hours = remainingSeconds.Value / 3600;
+            int minutes = (remainingSeconds.Value % 3600) / 60;
+            int seconds = remainingSeconds.Value % 60;
+            return $"Remaining: {hours:00}:{minutes:00}:{seconds:00}";
+        }
+
         public static bool ToggledMouseMovementState(bool isEnabled)
         {
             return !isEnabled;

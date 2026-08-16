@@ -50,6 +50,22 @@ test_timeout_policy_requires_enabled_camera_and_duration (void)
 }
 
 static void
+test_timeout_remaining_rounds_up_and_formats_duration (void)
+{
+	g_autofree char *formatted = NULL;
+	guint remaining;
+
+	remaining = opentrackir_timeout_remaining_seconds (10 * G_USEC_PER_SEC,
+	                                                   1500001);
+	g_assert_cmpuint (remaining, ==, 9);
+	g_assert_cmpuint (opentrackir_timeout_remaining_seconds (100, 100), ==, 0);
+	g_assert_cmpuint (opentrackir_timeout_remaining_seconds (0, 0), ==, 0);
+
+	formatted = opentrackir_format_timeout_remaining (8 * 3600 + 7 * 60 + 6);
+	g_assert_cmpstr (formatted, ==, "Remaining: 08:07:06");
+}
+
+static void
 test_telemetry_formatting (void)
 {
 	g_autofree char *frame_rate = opentrackir_format_frame_rate (TRUE, 119.54);
@@ -71,6 +87,7 @@ main (int   argc,
 	g_test_add_func ("/linux/display/preview-policy", test_preview_policy_requires_visible_active_video);
 	g_test_add_func ("/linux/display/preview-generation", test_preview_copy_requires_new_generation);
 	g_test_add_func ("/linux/display/timeout-policy", test_timeout_policy_requires_enabled_camera_and_duration);
+	g_test_add_func ("/linux/display/timeout-remaining", test_timeout_remaining_rounds_up_and_formats_duration);
 	g_test_add_func ("/linux/display/telemetry-formatting", test_telemetry_formatting);
 
 	return g_test_run ();

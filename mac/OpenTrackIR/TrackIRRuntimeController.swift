@@ -26,6 +26,7 @@ struct TrackIRControlState: Equatable {
 @MainActor
 final class TrackIRRuntimeController: ObservableObject {
     @Published private(set) var controlState: TrackIRControlState
+    @Published private(set) var timeoutDeadline: Date?
 
     let cameraController: TrackIRCameraController
 
@@ -42,6 +43,7 @@ final class TrackIRRuntimeController: ObservableObject {
         self.userDefaults = userDefaults
         self.cameraController = cameraController ?? TrackIRCameraController()
         self.controlState = trackIRControlState(userDefaults: userDefaults)
+        self.timeoutDeadline = nil
         self.cameraController.xKeysFailureHandler = { [weak self] in
             self?.setXKeysFastMouseEnabled(false)
         }
@@ -267,6 +269,7 @@ final class TrackIRRuntimeController: ObservableObject {
 
     private func syncTimeoutTask() {
         timeoutTask?.cancel()
+        timeoutDeadline = nil
 
         guard shouldScheduleTrackIRTimeout(
             isTrackIREnabled: controlState.isTrackIREnabled,
@@ -278,6 +281,7 @@ final class TrackIRRuntimeController: ObservableObject {
         }
 
         let timeoutSeconds = controlState.timeoutSeconds
+        timeoutDeadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
         timeoutTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds) * 1_000_000_000)
             guard !Task.isCancelled else {

@@ -29,6 +29,28 @@ opentrackir_timeout_should_run (gboolean camera_enabled,
 	return camera_enabled && timeout_enabled && timeout_seconds > 0;
 }
 
+guint
+opentrackir_timeout_remaining_seconds (gint64 deadline_microseconds,
+                                       gint64 now_microseconds)
+{
+	gint64 remaining_microseconds;
+
+	remaining_microseconds = deadline_microseconds - now_microseconds;
+	if (deadline_microseconds <= 0 || remaining_microseconds <= 0)
+		return 0;
+	return (guint)((remaining_microseconds + G_USEC_PER_SEC - 1) / G_USEC_PER_SEC);
+}
+
+char *
+opentrackir_format_timeout_remaining (guint remaining_seconds)
+{
+	guint hours = remaining_seconds / 3600;
+	guint minutes = (remaining_seconds % 3600) / 60;
+	guint seconds = remaining_seconds % 60;
+
+	return g_strdup_printf ("Remaining: %02u:%02u:%02u", hours, minutes, seconds);
+}
+
 char *
 opentrackir_format_frame_rate (gboolean has_frame_rate,
                                double   frame_rate)

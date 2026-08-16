@@ -39,6 +39,7 @@ struct _OpentrackirApplication
 	GSettings *settings;
 	OpentrackirWindow *window;
 	guint timeout_source_id;
+	gint64 timeout_deadline_microseconds;
 	gboolean background_hold_active;
 	gboolean window_visible;
 };
@@ -111,6 +112,7 @@ timeout_elapsed (gpointer user_data)
 	OpentrackirApplication *self = user_data;
 
 	self->timeout_source_id = 0;
+	self->timeout_deadline_microseconds = 0;
 	g_settings_set_boolean (self->settings, "camera-enabled", FALSE);
 	return G_SOURCE_REMOVE;
 }
@@ -125,6 +127,7 @@ opentrackir_application_update_timeout (OpentrackirApplication *self)
 		g_source_remove (self->timeout_source_id);
 		self->timeout_source_id = 0;
 	}
+	self->timeout_deadline_microseconds = 0;
 
 	timeout_seconds = (guint)g_settings_get_int (self->settings, "timeout-seconds");
 	if (opentrackir_timeout_should_run (
@@ -132,6 +135,8 @@ opentrackir_application_update_timeout (OpentrackirApplication *self)
 		g_settings_get_boolean (self->settings, "timeout-enabled"),
 		timeout_seconds))
 	{
+		self->timeout_deadline_microseconds =
+			g_get_monotonic_time () + ((gint64)timeout_seconds * G_USEC_PER_SEC);
 		self->timeout_source_id =
 			g_timeout_add_seconds (timeout_seconds, timeout_elapsed, self);
 	}
@@ -496,6 +501,17 @@ opentrackir_application_status_notifier_is_available (OpentrackirApplication *se
 
 	return self->status_notifier != NULL &&
 	       opentrackir_status_notifier_is_available (self->status_notifier);
+}
+
+guint
+opentrackir_application_timeout_remaining_seconds (OpentrackirApplication *self)
+{
+	g_return_val_if_fail (OPENTRACKIR_IS_APPLICATION (self), 0);
+
+	return opentrackir_timeout_remaining_seconds (
+		self->timeout_deadline_microseconds,
+		g_get_monotonic_time ()
+	);
 }
 
 static void

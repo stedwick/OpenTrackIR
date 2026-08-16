@@ -2,6 +2,13 @@
 
 This directory contains the GTK 4 and libadwaita application for Linux. During host development, it links to a staged installation of the shared OpenTrackIR C library through pkg-config.
 
+The native build requires a C toolchain, CMake, Meson, Ninja, pkg-config,
+`libusb-1.0`, GTK 4 4.12 or newer, libadwaita 1.4 or newer, and libevdev 1.10
+or newer. `desktop-file-validate`, `appstreamcli`, and
+`glib-compile-schemas` enable the metadata validation tests.
+
+## Host development build
+
 From the repository root:
 
 ```sh
@@ -29,6 +36,53 @@ meson setup nix/builddir nix --reconfigure \
 ```
 
 Configure a GNOME Builder host build with that pkg-config path as well.
+
+## Reproducible native install tree
+
+The shared C library and Linux app use separate build systems, but they can be
+assembled into one package root without writing to the live system. Build the
+core in a private prefix, configure the app for its final `/usr` prefix, and use
+`DESTDIR` only while assembling the package tree:
+
+```sh
+core_build="$PWD/build/linux-core-release"
+core_prefix="$PWD/build/linux-core-prefix"
+app_build="$PWD/build/linux-app-release"
+package_root="$PWD/build/linux-package-root"
+
+cmake -S . -B "$core_build" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$core_prefix" \
+  -DOPENTRACKIR_BUILD_PREVIEW=OFF
+cmake --build "$core_build"
+ctest --test-dir "$core_build" --output-on-failure
+cmake --install "$core_build"
+
+meson setup "$app_build" nix \
+  --prefix=/usr \
+  -Dpkg_config_path="$core_prefix/lib/pkgconfig" \
+  --buildtype=release
+meson compile -C "$app_build"
+meson test -C "$app_build" --print-errorlogs
+
+DESTDIR="$package_root" cmake --install "$core_build" --prefix /usr
+DESTDIR="$package_root" meson install -C "$app_build"
+```
+
+The resulting tree contains the runtime library, application, license, desktop
+and D-Bus launchers, AppStream metadata, icons, GSettings schema, udev rules,
+and modules-load configuration. Inspect it with:
+
+```sh
+find "$package_root" -type f -o -type l | sort
+```
+
+This tree is suitable as the input to a distro-native package. A local source
+install may use the default `/usr/local` prefix instead; modern systemd-udev
+loads rules and modules-load configuration from `/usr/local/lib` as well as
+`/usr/lib`. Package recipes should use their distribution's standard hooks to
+compile GSettings schemas and refresh the desktop and icon caches. Meson's
+post-install step performs those updates automatically for a direct install.
 
 ## TrackIR USB access
 
@@ -98,8 +152,20 @@ getfacl /dev/uinput
 If `/dev/uinput` is still missing or not writable, reboot so the module and rule
 are applied from startup. Alternatively, unload and reload `uinput` after the
 rule is installed, provided no other application is using it. Native packages
-should install these same files under `/usr/lib/udev/rules.d/` and
-`/usr/lib/modules-load.d/`.
+install these same files under `/usr/lib/udev/rules.d/` and
+`/usr/lib/modules-load.d/`. A Meson source install with the default prefix puts
+them under `/usr/local/lib`. After installing or upgrading either form, load
+the module and refresh device permissions once:
+
+```sh
+sudo modprobe uinput
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput
+```
+
+Unplug and reconnect the TrackIR so its USB node receives the new ACL. A reboot
+performs both the module load and permission setup if either device is still
+missing or inaccessible.
 
 On a non-systemd distribution without `uaccess`, use a dedicated `uinput` group
 and a narrowly scoped rule granting that group mode `0660`, then add only the
@@ -132,4 +198,7 @@ about 3.5% CPU with the preview visible, 1.7% hidden with full mouse tracking,
 and 1.2% hidden in low-power/keep-awake mode. These are development measurements,
 not hardware-independent guarantees.
 
-The Flatpak manifest is not yet wired to build the shared C library. Host builds are the supported development path while the initial Linux port is being implemented.
+The Flatpak manifest is not yet wired to build the shared C library. Native
+builds are the supported path while the Flatpak USB and uinput permission model
+is being evaluated. In particular, the native permission files installed above
+do not grant a Flatpak access to host devices by themselves.

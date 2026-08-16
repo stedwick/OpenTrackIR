@@ -20,10 +20,11 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `src/opentrackir-window.ui`: main window template and primary menu.
 - `src/shortcuts-dialog.ui`: keyboard-shortcut resource.
 - `src/opentrackir.gresource.xml`: compiled GTK resource manifest.
-- `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, and application icons.
+- `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, application icons, and Meson installation of Linux system-integration files.
+- `udev/`, `modules-load/`: narrowly scoped TrackIR USB and uinput permission rules plus boot-time uinput module loading for native installs.
 - `po/`: gettext source list and language catalog configuration.
 
-The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, libevdev/uinput mouse output, background operation, and optional StatusNotifierItem tray integration. TrackIR USB and uinput access use separate repository udev rules. Some generated template metadata remains placeholder text.
+The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, libevdev/uinput mouse output, background operation, and optional StatusNotifierItem tray integration. TrackIR USB and uinput access use separate rules that are included in the native Meson install.
 
 ## Linux-specific rules
 

@@ -1,6 +1,6 @@
 /* opentrackir-application.c
  *
- * Copyright 2026 Unknown
+ * Copyright 2026 Philip Brocoum
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -416,7 +416,7 @@ opentrackir_application_about_action (GSimpleAction *action,
                                       GVariant      *parameter,
                                       gpointer       user_data)
 {
-	static const char *developers[] = {"Unknown", NULL};
+	static const char *developers[] = {"Philip Brocoum", NULL};
 	OpentrackirApplication *self = user_data;
 	GtkWindow *window = GTK_WINDOW (self->window);
 
@@ -425,11 +425,14 @@ opentrackir_application_about_action (GSimpleAction *action,
 	adw_show_about_dialog (GTK_WIDGET (window),
 	                       "application-name", "OpenTrackIR",
 	                       "application-icon", "org.gnome.opentrackir",
-	                       "developer-name", "Unknown",
+	                       "developer-name", "Philip Brocoum",
+	                       "comments", _("An infrared head mouse for NaturalPoint TrackIR cameras"),
+	                       "website", "https://github.com/stedwick/OpenTrackIR",
+	                       "issue-url", "https://github.com/stedwick/OpenTrackIR/issues",
 	                       "translator-credits", _("translator-credits"),
-	                       "version", "0.1.0",
+	                       "version", PACKAGE_VERSION,
 	                       "developers", developers,
-	                       "copyright", "© 2026 Unknown",
+	                       "copyright", "© 2026 Philip Brocoum",
 	                       NULL);
 }
 

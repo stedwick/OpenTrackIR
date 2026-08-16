@@ -21,6 +21,22 @@ if(UNIX AND NOT APPLE)
   target_link_libraries(opentrackir PUBLIC m)
 endif()
 
+# Keep the pkg-config file relocatable so a staged core install can be used to
+# build platform applications without pretending all host dependencies live in
+# the same sysroot. This also supports multiarch CMAKE_INSTALL_LIBDIR values.
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+  set(OPENTRACKIR_PC_DIRECTORY "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  set(OPENTRACKIR_PC_PREFIX "${CMAKE_INSTALL_PREFIX}")
+else()
+  set(OPENTRACKIR_PC_DIRECTORY "/${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  set(OPENTRACKIR_PC_PREFIX "/")
+endif()
+file(RELATIVE_PATH
+  OPENTRACKIR_PC_PREFIX_RELATIVE
+  "${OPENTRACKIR_PC_DIRECTORY}"
+  "${OPENTRACKIR_PC_PREFIX}"
+)
+
 configure_file(
   opentrackir.pc.in
   ${CMAKE_CURRENT_BINARY_DIR}/opentrackir.pc

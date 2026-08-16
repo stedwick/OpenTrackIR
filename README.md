@@ -1,6 +1,10 @@
 # OpenTrackIR
 
-OpenTrackIR is an infrared head-mouse to move your cursor on macOS & Windows (and soon Linux) if you are disabled. OpenTrackIR is a reverse-engineering workspace for NaturalPoint TrackIR hardware, with the explicit goal of removing the dependency on NaturalPoint's proprietary SDK and making device support work cross-platform.
+OpenTrackIR is an infrared head mouse for moving the cursor on macOS, Windows,
+and Linux. It is intended for people who use head movement as an accessibility
+input. OpenTrackIR is also a reverse-engineering workspace for NaturalPoint
+TrackIR hardware, with the explicit goal of removing the proprietary SDK
+dependency and making device support work cross-platform.
 
 ## macOS download app
 
@@ -27,6 +31,38 @@ On Windows, we require WinUSB drivers for the TrackIR.
 
 ![Zadig WinUSB driver setup](screenshots/zadig-WinUSB-driver.png)
 
+## Linux app build
+
+The Linux app uses GTK 4 and libadwaita, streams through the shared C library,
+and posts relative pointer movement through libevdev and `/dev/uinput`. It works
+under both X11 and Wayland without a compositor-specific cursor protocol.
+
+Linux requires two narrowly scoped host permissions: access to the TrackIR USB
+device and write access to `/dev/uinput`. The native install includes udev rules
+for both devices and a modules-load file for `uinput`; after installation, reload
+the rules and reconnect the TrackIR or reboot. Do not run OpenTrackIR as root.
+
+Build and test the shared library and GTK app from the repository root:
+
+```sh
+opentrackir_prefix="$PWD/build/linux-prefix"
+
+cmake -S . -B build \
+  -DOPENTRACKIR_BUILD_PREVIEW=OFF \
+  -DCMAKE_INSTALL_PREFIX="$opentrackir_prefix"
+cmake --build build
+ctest --test-dir build --output-on-failure
+cmake --install build
+
+meson setup nix/builddir nix \
+  -Dpkg_config_path="$opentrackir_prefix/lib/pkgconfig"
+meson compile -C nix/builddir
+meson test -C nix/builddir --print-errorlogs
+```
+
+See [`nix/README.md`](nix/README.md) for dependency details, permission setup,
+running the app, and producing a staged native package tree.
+
 ## Notes on cross-platform development
 
 Philip says: I want this to be cross-platform so I can use macOS, Windows, and Linux, and by golly, I'm going to do it! But it's definitely way too much for a solo developer like me to maintain three codebases for three OSes. In hindsight, it was a mistake. I'd like to look at something like https://avaloniaui.net in the future.
@@ -39,7 +75,9 @@ The repo is organized by implementation target:
 - `c/`: reusable cross-platform C library for TrackIR protocol, frame reconstruction, and device control.
 - `cpp/`: native C++ consumers and harnesses for the C library, including the OpenCV preview app.
 - `mac/`: SwiftUI macOS app with live TrackIR preview controls, native mouse output, and a temporary bridge to the shared C sources.
-- `win/`, `nix/`: platform-specific notes, adapters, or future integration work.
+- `win/`: WinUI application and Windows-specific input adapters.
+- `nix/`: GTK 4/libadwaita Linux app, libevdev/uinput adapter, packaging data,
+  and Linux permission rules.
 - `tmp/`: scratch output and temporary artifacts.
 
 ## Project goals

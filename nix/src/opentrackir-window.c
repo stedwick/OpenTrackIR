@@ -1,6 +1,6 @@
 /* opentrackir-window.c
  *
- * Copyright 2026 Unknown
+ * Copyright 2026 Philip Brocoum
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */

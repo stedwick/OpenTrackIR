@@ -50,4 +50,16 @@ configure_file(
   install_dir: get_option('datadir') / 'dbus-1' / 'services'
 )
 
+# Native packages install these under /usr/lib. Keeping the paths relative to
+# the Meson prefix also makes DESTDIR staging work without touching the host.
+install_data('../udev/70-opentrackir-trackir.rules',
+  install_dir: 'lib' / 'udev' / 'rules.d'
+)
+install_data('../udev/70-opentrackir-uinput.rules',
+  install_dir: 'lib' / 'udev' / 'rules.d'
+)
+install_data('../modules-load/opentrackir-uinput.conf',
+  install_dir: 'lib' / 'modules-load.d'
+)
+
 subdir('icons')

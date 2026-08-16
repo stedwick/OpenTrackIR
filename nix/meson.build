@@ -1,5 +1,5 @@
 project('opentrackir', 'c',
-          version: '0.1.0',
+          version: '0.2.3',
     meson_version: '>= 1.0.0',
   default_options: [ 'warning_level=2', 'werror=false', 'c_std=gnu11', ],
 )
@@ -82,6 +82,10 @@ foreach arg: test_c_args
   endif
 endforeach
 add_project_arguments(project_c_args, language: 'c')
+
+install_data('COPYING',
+  install_dir: get_option('datadir') / 'licenses' / meson.project_name()
+)
 
 subdir('data')
 subdir('src')

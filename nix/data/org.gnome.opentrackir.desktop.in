@@ -1,10 +1,11 @@
 [Desktop Entry]
 Name=OpenTrackIR
+Comment=Move the pointer with a TrackIR camera
 Exec=opentrackir
 Icon=org.gnome.opentrackir
 Terminal=false
 Type=Application
-Categories=Utility;
-Keywords=GTK;
+Categories=Utility;Accessibility;
+Keywords=TrackIR;head tracking;accessibility;mouse;pointer;
 StartupNotify=true
 DBusActivatable=true

@@ -4,8 +4,8 @@
   <requires lib="Adw" version="1.0"/>
   <template class="OpentrackirWindow" parent="AdwApplicationWindow">
     <property name="title" translatable="yes">OpenTrackIR</property>
-    <property name="default-width">800</property>
-    <property name="default-height">600</property>
+    <property name="default-width">640</property>
+    <property name="default-height">560</property>
     <property name="content">
       <object class="AdwToolbarView">
         <child type="top">
@@ -21,11 +21,73 @@
           </object>
         </child>
         <property name="content">
-          <object class="GtkLabel" id="label">
-            <property name="label" translatable="yes">Hello, World!</property>
-            <style>
-              <class name="title-1"/>
-            </style>
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">18</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <property name="margin-start">24</property>
+                <property name="margin-end">24</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="spacing">12</property>
+                    <property name="halign">center</property>
+                    <child>
+                      <object class="GtkButton" id="start_button">
+                        <property name="label" translatable="yes">Start TrackIR</property>
+                        <style>
+                          <class name="suggested-action"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="stop_button">
+                        <property name="label" translatable="yes">Stop</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Camera Session</property>
+                    <property name="description" translatable="yes">Live state from the shared OpenTrackIR session.</property>
+                    <child>
+                      <object class="AdwActionRow" id="phase_row">
+                        <property name="title" translatable="yes">Status</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="error_row">
+                        <property name="title" translatable="yes">Last Error</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="frame_index_row">
+                        <property name="title" translatable="yes">Processed Frames</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="frame_rate_row">
+                        <property name="title" translatable="yes">Source Rate</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="packet_type_row">
+                        <property name="title" translatable="yes">Packet Type</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="centroid_row">
+                        <property name="title" translatable="yes">Centroid</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
           </object>
         </property>
       </object>
@@ -33,14 +95,6 @@
   </template>
   <menu id="primary_menu">
     <section>
-      <item>
-        <attribute name="label" translatable="yes">_Preferences</attribute>
-        <attribute name="action">app.preferences</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
-        <attribute name="action">app.shortcuts</attribute>
-      </item>
       <item>
         <attribute name="label" translatable="yes">_About OpenTrackIR</attribute>
         <attribute name="action">app.about</attribute>

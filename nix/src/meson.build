@@ -1,6 +1,8 @@
 opentrackir_sources = [
   'main.c',
   'opentrackir-application.c',
+  'opentrackir-session-controller.c',
+  'opentrackir-session-state.c',
   'opentrackir-window.c',
 ]
 

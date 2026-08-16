@@ -22,6 +22,7 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `src/opentrackir.gresource.xml`: compiled GTK resource manifest.
 - `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, application icons, and Meson installation of Linux system-integration files.
 - `udev/`, `modules-load/`: narrowly scoped TrackIR USB and uinput permission rules plus boot-time uinput module loading for native installs.
+- `../packaging/arch/`: Arch Linux/Omarchy `PKGBUILD`, install notice, and package build instructions.
 - `po/`: gettext source list and language catalog configuration.
 
 The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, libevdev/uinput mouse output, background operation, and optional StatusNotifierItem tray integration. TrackIR USB and uinput access use separate rules that are included in the native Meson install.
@@ -72,6 +73,8 @@ meson devenv -C builddir ./src/opentrackir
 ```
 
 Use a fresh build directory or `meson setup --reconfigure builddir` after changing build definitions. Validate both the host build and GNOME Builder Flatpak build when changing dependencies, sandbox permissions, packaging, or hardware access.
+
+Build Arch release packages outside nested user namespaces so fakeroot records `root:root`; confirm archive ownership with `bsdtar -tvf` and installed integrity with `pacman -Qkk opentrackir`. Run the installed integrity check in the host namespace because a sandbox may map host UID 0 to `nobody` and report false UID/GID mismatches.
 
 ## Change strategy
 

@@ -190,7 +190,7 @@ Work:
 1. Connect settings, TrackIR session, preview, mouse backend, errors, and background lifecycle end to end. (Complete on the current Hyprland system.)
 2. Replace generated placeholder README/AppStream/about metadata and use the real project URLs and developer identity. (Complete.)
 3. Make the Flatpak source portable and pin a released GNOME runtime instead of `master` for development builds.
-4. Treat a native package as the primary Linux release until Flatpak can expose uinput without an unacceptably broad `--device=all` permission.
+4. Treat a native package as the primary Linux release until Flatpak can expose uinput without an unacceptably broad `--device=all` permission. (Arch package complete and physically validated on Omarchy; Debian packaging deferred.)
 5. Choose and document the Flatpak TrackIR USB strategy independently: raw USB permission for compatibility or USB portal integration for least privilege.
 6. Package the narrow TrackIR USB and uinput udev rules plus the uinput modules-load file; document reload, replug, reboot, and verification behavior. (Complete for the native Meson install.)
 7. Add Linux build/test commands and permission setup to the root README and release process. (Root build and permission documentation complete; release automation remains.)
@@ -204,4 +204,4 @@ Acceptance:
 
 ## Immediate next step
 
-Finish Chunk 7 by turning the verified staged native install into a distributable package, then make the GNOME Builder Flatpak source portable while keeping its device limitations explicit.
+Make the GNOME Builder Flatpak source portable while keeping its TrackIR USB and uinput device limitations explicit.

@@ -8,6 +8,10 @@ add_library(opentrackir SHARED
   src/tir5_session.c
   src/tir5_tooling.c
 )
+set_target_properties(opentrackir PROPERTIES
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 if(WIN32)
   set_target_properties(opentrackir PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()

@@ -84,6 +84,14 @@ loads rules and modules-load configuration from `/usr/local/lib` as well as
 compile GSettings schemas and refresh the desktop and icon caches. Meson's
 post-install step performs those updates automatically for a direct install.
 
+## Arch Linux and Omarchy package
+
+The repository includes an Arch `PKGBUILD` under `packaging/arch/`. It builds
+the same C and Meson targets, runs their tests, and produces a package that can
+be installed and removed cleanly through `pacman`. See
+[`packaging/arch/README.md`](../packaging/arch/README.md) for the current local
+build and installation commands.
+
 ## TrackIR USB access
 
 The application should run as your normal desktop user. Do not run it with `sudo`.

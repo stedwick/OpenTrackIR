@@ -63,6 +63,11 @@ meson test -C nix/builddir --print-errorlogs
 See [`nix/README.md`](nix/README.md) for dependency details, permission setup,
 running the app, and producing a staged native package tree.
 
+On Arch Linux and Omarchy, build the repository's native `pacman` package from
+[`packaging/arch/`](packaging/arch/). The package keeps the application,
+library, desktop integration, and device-permission files under package-manager
+control.
+
 ## Notes on cross-platform development
 
 Philip says: I want this to be cross-platform so I can use macOS, Windows, and Linux, and by golly, I'm going to do it! But it's definitely way too much for a solo developer like me to maintain three codebases for three OSes. In hindsight, it was a mistake. I'd like to look at something like https://avaloniaui.net in the future.

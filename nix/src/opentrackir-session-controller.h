@@ -22,6 +22,9 @@ void                          opentrackir_session_controller_stop      (Opentrac
 void                          opentrackir_session_controller_set_video_enabled
                                                                       (OpentrackirSessionController *self,
                                                                        gboolean                      enabled);
+void                          opentrackir_session_controller_set_low_power_enabled
+                                                                      (OpentrackirSessionController *self,
+                                                                       gboolean                      enabled);
 void                          opentrackir_session_controller_set_tracking_frames_per_second
                                                                       (OpentrackirSessionController *self,
                                                                        double                        frames_per_second);
@@ -33,7 +36,9 @@ void                          opentrackir_session_controller_set_centroid_mode
                                                                        otir_tir5v3_centroid_mode     mode);
 void                          opentrackir_session_controller_set_mouse_config
                                                                       (OpentrackirSessionController       *self,
-                                                                       gboolean                            enabled,
+                                                                       gboolean                            movement_enabled,
+                                                                       gboolean                            camera_enabled,
+                                                                       guint                               keep_awake_seconds,
                                                                        otir_trackir_mouse_tracker_config   config);
 gboolean                      opentrackir_session_controller_copy_preview_frame
                                                                       (OpentrackirSessionController *self,

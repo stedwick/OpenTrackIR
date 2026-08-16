@@ -30,5 +30,7 @@ G_DECLARE_FINAL_TYPE (OpentrackirApplication, opentrackir_application, OPENTRACK
 
 OpentrackirApplication *opentrackir_application_new (const char        *application_id,
                                                      GApplicationFlags  flags);
+gboolean opentrackir_application_status_notifier_is_available
+                                                    (OpentrackirApplication *self);
 
 G_END_DECLS

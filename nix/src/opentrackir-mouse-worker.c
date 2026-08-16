@@ -10,7 +10,9 @@ struct _OpentrackirMouseWorker
 	GCond condition;
 	GThread *thread;
 	gboolean stop_requested;
-	gboolean enabled;
+	gboolean output_enabled;
+	gboolean movement_enabled;
+	guint keep_awake_seconds;
 	guint64 config_generation;
 	otir_trackir_mouse_tracker_config config;
 	OpentrackirUinputState state;
@@ -34,7 +36,7 @@ wait_while_configuration_is_unchanged (OpentrackirMouseWorker *self,
 
 	g_mutex_lock (&self->mutex);
 	while (!self->stop_requested &&
-	       self->enabled &&
+	       self->output_enabled &&
 	       self->config_generation == config_generation)
 	{
 		g_cond_wait (&self->condition, &self->mutex);
@@ -54,17 +56,25 @@ mouse_worker_main (gpointer user_data)
 	double pending_y = 0.0;
 	guint64 last_frame_index = 0;
 	gboolean was_streaming = FALSE;
+	guint keep_awake_direction = 0;
+	guint64 keep_awake_generation = G_MAXUINT64;
+	gint64 next_keep_awake_time = 0;
 
 	for (;;)
 	{
 		otir_trackir_mouse_tracker_config config;
-		gboolean enabled;
+		gboolean output_enabled;
+		gboolean movement_enabled;
 		gboolean stop_requested;
+		guint keep_awake_seconds;
 		guint64 config_generation;
+		gint64 wait_deadline;
 
 		g_mutex_lock (&self->mutex);
 		stop_requested = self->stop_requested;
-		enabled = self->enabled;
+		output_enabled = self->output_enabled;
+		movement_enabled = self->movement_enabled;
+		keep_awake_seconds = self->keep_awake_seconds;
 		config = self->config;
 		config_generation = self->config_generation;
 		g_mutex_unlock (&self->mutex);
@@ -72,7 +82,7 @@ mouse_worker_main (gpointer user_data)
 		if (stop_requested)
 			break;
 
-		if (!enabled)
+		if (!output_enabled)
 		{
 			opentrackir_uinput_pointer_close (pointer);
 			set_state (self, opentrackir_uinput_pointer_get_state (pointer));
@@ -80,9 +90,10 @@ mouse_worker_main (gpointer user_data)
 			pending_x = 0.0;
 			pending_y = 0.0;
 			was_streaming = FALSE;
+			next_keep_awake_time = 0;
 
 			g_mutex_lock (&self->mutex);
-			while (!self->stop_requested && !self->enabled)
+			while (!self->stop_requested && !self->output_enabled)
 				g_cond_wait (&self->condition, &self->mutex);
 			g_mutex_unlock (&self->mutex);
 			continue;
@@ -105,8 +116,11 @@ mouse_worker_main (gpointer user_data)
 			}
 		}
 
+		wait_deadline = g_get_monotonic_time () + MOUSE_POLL_INTERVAL_MICROSECONDS;
+		if (movement_enabled)
 		{
 			otir_trackir_session_snapshot snapshot = { 0 };
+			next_keep_awake_time = 0;
 
 			otir_trackir_session_copy_snapshot (self->session, &snapshot);
 			if (snapshot.phase != OTIR_TRACKIR_SESSION_PHASE_STREAMING)
@@ -166,13 +180,47 @@ mouse_worker_main (gpointer user_data)
 				}
 			}
 		}
+		else
+		{
+			OpentrackirRelativeDelta delta;
+			gint64 now = g_get_monotonic_time ();
+			gint64 interval = (gint64)keep_awake_seconds * G_USEC_PER_SEC;
+
+			otir_trackir_mouse_tracker_reset (&tracker);
+			pending_x = 0.0;
+			pending_y = 0.0;
+			was_streaming = FALSE;
+			if (keep_awake_generation != config_generation || next_keep_awake_time == 0)
+			{
+				keep_awake_generation = config_generation;
+				next_keep_awake_time = now + interval;
+			}
+
+			if (now >= next_keep_awake_time)
+			{
+				OpentrackirUinputState pointer_state;
+
+				delta = opentrackir_keep_awake_delta (keep_awake_direction++);
+				pointer_state = opentrackir_uinput_pointer_post (pointer,
+				                                                 delta.delta_x,
+				                                                 delta.delta_y);
+				set_state (self, pointer_state);
+				next_keep_awake_time = now + interval;
+				if (pointer_state.phase != OPENTRACKIR_UINPUT_PHASE_READY)
+				{
+					if (!wait_while_configuration_is_unchanged (self, config_generation))
+						break;
+				}
+			}
+			wait_deadline = next_keep_awake_time;
+		}
 
 		g_mutex_lock (&self->mutex);
 		if (!self->stop_requested)
 		{
 			g_cond_wait_until (&self->condition,
 			                   &self->mutex,
-			                   g_get_monotonic_time () + MOUSE_POLL_INTERVAL_MICROSECONDS);
+			                   wait_deadline);
 		}
 		g_mutex_unlock (&self->mutex);
 	}
@@ -216,25 +264,34 @@ opentrackir_mouse_worker_free (OpentrackirMouseWorker *self)
 
 void
 opentrackir_mouse_worker_set_config (OpentrackirMouseWorker            *self,
-                                    gboolean                           enabled,
-                                    otir_trackir_mouse_tracker_config  config)
+	                                gboolean                           movement_enabled,
+	                                gboolean                           camera_enabled,
+	                                guint                              keep_awake_seconds,
+	                                otir_trackir_mouse_tracker_config  config)
 {
-	gboolean was_enabled;
+	gboolean output_enabled;
+	gboolean was_output_enabled;
 
 	g_return_if_fail (self != NULL);
 
 	g_mutex_lock (&self->mutex);
-	was_enabled = self->enabled;
-	self->enabled = enabled;
+	output_enabled = movement_enabled ||
+		opentrackir_keep_awake_should_run (camera_enabled,
+		                                    movement_enabled,
+		                                    keep_awake_seconds);
+	was_output_enabled = self->output_enabled;
+	self->output_enabled = output_enabled;
+	self->movement_enabled = movement_enabled;
+	self->keep_awake_seconds = keep_awake_seconds;
 	self->config = config;
 	self->config_generation += 1;
-	if (!enabled)
+	if (!output_enabled)
 	{
 		self->state = (OpentrackirUinputState) {
 			.phase = OPENTRACKIR_UINPUT_PHASE_DISABLED,
 		};
 	}
-	else if (!was_enabled || self->state.phase != OPENTRACKIR_UINPUT_PHASE_READY)
+	else if (!was_output_enabled || self->state.phase != OPENTRACKIR_UINPUT_PHASE_READY)
 	{
 		self->state = (OpentrackirUinputState) {
 			.phase = OPENTRACKIR_UINPUT_PHASE_STARTING,

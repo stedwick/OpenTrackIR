@@ -28,6 +28,10 @@
       <default>false</default>
       <summary>Enable mouse movement</summary>
     </key>
+    <key name="background-enabled" type="b">
+      <default>true</default>
+      <summary>Keep OpenTrackIR running when its window is closed</summary>
+    </key>
     <key name="mouse-speed" type="d">
       <range min="0.1" max="10.0"/>
       <default>2.0</default>

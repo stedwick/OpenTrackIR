@@ -88,6 +88,24 @@ test_mouse_settings_map_to_shared_tracker (void)
 	g_assert_cmpfloat (config.transform.rotation_degrees, ==, 12.0);
 }
 
+static void
+test_keep_awake_requires_camera_without_mouse_tracking (void)
+{
+	OpentrackirRelativeDelta delta;
+
+	g_assert_true (opentrackir_keep_awake_should_run (TRUE, FALSE, 29));
+	g_assert_false (opentrackir_keep_awake_should_run (FALSE, FALSE, 29));
+	g_assert_false (opentrackir_keep_awake_should_run (TRUE, TRUE, 29));
+	g_assert_false (opentrackir_keep_awake_should_run (TRUE, FALSE, 0));
+
+	delta = opentrackir_keep_awake_delta (0);
+	g_assert_cmpint (delta.delta_x, ==, 1);
+	g_assert_cmpint (delta.delta_y, ==, 0);
+	delta = opentrackir_keep_awake_delta (5);
+	g_assert_cmpint (delta.delta_x, ==, -1);
+	g_assert_cmpint (delta.delta_y, ==, 0);
+}
+
 int
 main (int   argc,
       char *argv[])
@@ -97,6 +115,7 @@ main (int   argc,
 	g_test_add_func ("/linux/uinput/fractional-delta", test_fractional_delta_is_retained);
 	g_test_add_func ("/linux/uinput/event-frame", test_event_frame_contains_only_required_events);
 	g_test_add_func ("/linux/uinput/tracker-config", test_mouse_settings_map_to_shared_tracker);
+	g_test_add_func ("/linux/uinput/keep-awake", test_keep_awake_requires_camera_without_mouse_tracking);
 
 	return g_test_run ();
 }

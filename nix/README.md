@@ -108,4 +108,28 @@ that can expose physical keyboard and pointer events. Keep this permission
 separate from the TrackIR USB rule because camera access and virtual pointer
 output are independent.
 
+## Background operation
+
+`Run in Background` is enabled by default. Closing the window hides it while the
+camera runtime remains owned by the application. Use the tray icon to restore
+the window; activating OpenTrackIR from the desktop or command line also restores
+the existing instance. Secondary activation of the tray icon toggles mouse
+movement. `Ctrl+Q` and the application's Quit menu action always stop the camera,
+destroy the virtual pointer, and exit.
+
+StatusNotifierItem support is optional. If the desktop has no tray host,
+OpenTrackIR reports that in the Background status row and sends a recovery
+notification when hidden. Launch OpenTrackIR again to restore it. Turn off
+`Run in Background` if closing the window should quit immediately.
+
+Preview publication and GTK telemetry updates stop while the window is hidden or
+minimized. With mouse movement enabled, head tracking continues at the configured
+rate. With mouse movement disabled, the shared session switches to its 2 FPS
+low-power mode; the uinput worker sleeps between configured keep-awake nudges.
+
+On the current Hyprland/Wayland development machine, 10-second samples measured
+about 3.5% CPU with the preview visible, 1.7% hidden with full mouse tracking,
+and 1.2% hidden in low-power/keep-awake mode. These are development measurements,
+not hardware-independent guarantees.
+
 The Flatpak manifest is not yet wired to build the shared C library. Host builds are the supported development path while the initial Linux port is being implemented.

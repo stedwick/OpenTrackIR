@@ -13,7 +13,9 @@ typedef struct _OpentrackirMouseWorker OpentrackirMouseWorker;
 OpentrackirMouseWorker *opentrackir_mouse_worker_new          (otir_trackir_session              *session);
 void                    opentrackir_mouse_worker_free         (OpentrackirMouseWorker            *self);
 void                    opentrackir_mouse_worker_set_config   (OpentrackirMouseWorker            *self,
-                                                               gboolean                           enabled,
+                                                               gboolean                           movement_enabled,
+                                                               gboolean                           camera_enabled,
+                                                               guint                              keep_awake_seconds,
                                                                otir_trackir_mouse_tracker_config  config);
 OpentrackirUinputState   opentrackir_mouse_worker_get_state    (OpentrackirMouseWorker            *self);
 

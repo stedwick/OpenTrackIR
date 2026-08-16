@@ -5,6 +5,7 @@
 #include "opentrackir-mouse-worker.h"
 
 #define SNAPSHOT_POLL_INTERVAL_MILLISECONDS 100
+#define LOW_POWER_SNAPSHOT_POLL_INTERVAL_MILLISECONDS 1000
 
 struct _OpentrackirSessionController
 {
@@ -17,6 +18,8 @@ struct _OpentrackirSessionController
 	guint poll_source_id;
 	guint mouse_poll_source_id;
 	gboolean mouse_enabled;
+	gboolean mouse_movement_enabled;
+	gboolean low_power_enabled;
 };
 
 G_DEFINE_FINAL_TYPE (OpentrackirSessionController, opentrackir_session_controller, G_TYPE_OBJECT)
@@ -80,6 +83,23 @@ opentrackir_session_controller_poll (gpointer user_data)
 	return G_SOURCE_CONTINUE;
 }
 
+static void
+opentrackir_session_controller_schedule_poll (OpentrackirSessionController *self)
+{
+	guint interval;
+
+	if (!opentrackir_session_controller_can_stop (self))
+		return;
+	if (self->poll_source_id != 0)
+		g_source_remove (self->poll_source_id);
+
+	interval = self->low_power_enabled
+		? LOW_POWER_SNAPSHOT_POLL_INTERVAL_MILLISECONDS
+		: SNAPSHOT_POLL_INTERVAL_MILLISECONDS;
+	self->poll_source_id =
+		g_timeout_add (interval, opentrackir_session_controller_poll, self);
+}
+
 static gboolean
 opentrackir_session_controller_poll_mouse (gpointer user_data)
 {
@@ -93,6 +113,23 @@ opentrackir_session_controller_poll_mouse (gpointer user_data)
 	}
 
 	return G_SOURCE_CONTINUE;
+}
+
+static void
+opentrackir_session_controller_schedule_mouse_poll (OpentrackirSessionController *self)
+{
+	guint interval;
+
+	if (!self->mouse_enabled)
+		return;
+	if (self->mouse_poll_source_id != 0)
+		g_source_remove (self->mouse_poll_source_id);
+
+	interval = self->mouse_movement_enabled
+		? SNAPSHOT_POLL_INTERVAL_MILLISECONDS
+		: LOW_POWER_SNAPSHOT_POLL_INTERVAL_MILLISECONDS;
+	self->mouse_poll_source_id =
+		g_timeout_add (interval, opentrackir_session_controller_poll_mouse, self);
 }
 
 static void
@@ -236,14 +273,8 @@ opentrackir_session_controller_start (OpentrackirSessionController *self)
 	opentrackir_session_controller_refresh (self);
 
 	if (status == OTIR_STATUS_OK &&
-	    self->poll_source_id == 0 &&
 	    opentrackir_session_controller_can_stop (self))
-	{
-		self->poll_source_id =
-			g_timeout_add (SNAPSHOT_POLL_INTERVAL_MILLISECONDS,
-			               opentrackir_session_controller_poll,
-			               self);
-	}
+		opentrackir_session_controller_schedule_poll (self);
 }
 
 void
@@ -272,6 +303,21 @@ opentrackir_session_controller_set_video_enabled (OpentrackirSessionController *
 
 	if (self->session != NULL)
 		otir_trackir_session_set_video_enabled (self->session, enabled);
+}
+
+void
+opentrackir_session_controller_set_low_power_enabled (OpentrackirSessionController *self,
+                                                      gboolean                      enabled)
+{
+	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
+
+	if (self->session == NULL || self->low_power_enabled == enabled)
+		return;
+
+	self->low_power_enabled = enabled;
+	otir_trackir_session_set_low_power_mode_enabled (self->session, enabled);
+	if (self->poll_source_id != 0)
+		opentrackir_session_controller_schedule_poll (self);
 }
 
 void
@@ -308,26 +354,37 @@ opentrackir_session_controller_set_centroid_mode (OpentrackirSessionController *
 
 void
 opentrackir_session_controller_set_mouse_config (OpentrackirSessionController      *self,
-                                                 gboolean                           enabled,
+                                                 gboolean                           movement_enabled,
+                                                 gboolean                           camera_enabled,
+                                                 guint                              keep_awake_seconds,
                                                  otir_trackir_mouse_tracker_config  config)
 {
+	gboolean output_enabled;
+	gboolean movement_mode_changed;
+
 	g_return_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (self));
 
 	if (self->mouse_worker == NULL)
 		return;
 
-	self->mouse_enabled = enabled;
-	opentrackir_mouse_worker_set_config (self->mouse_worker, enabled, config);
+	output_enabled = movement_enabled ||
+		opentrackir_keep_awake_should_run (camera_enabled,
+		                                    movement_enabled,
+		                                    keep_awake_seconds);
+	movement_mode_changed = self->mouse_movement_enabled != movement_enabled;
+	self->mouse_enabled = output_enabled;
+	self->mouse_movement_enabled = movement_enabled;
+	opentrackir_mouse_worker_set_config (self->mouse_worker,
+	                                    movement_enabled,
+	                                    camera_enabled,
+	                                    keep_awake_seconds,
+	                                    config);
 	opentrackir_session_controller_refresh_mouse (self);
 
-	if (enabled && self->mouse_poll_source_id == 0)
-	{
-		self->mouse_poll_source_id =
-			g_timeout_add (SNAPSHOT_POLL_INTERVAL_MILLISECONDS,
-			               opentrackir_session_controller_poll_mouse,
-			               self);
-	}
-	else if (!enabled && self->mouse_poll_source_id != 0)
+	if (output_enabled &&
+	    (self->mouse_poll_source_id == 0 || movement_mode_changed))
+		opentrackir_session_controller_schedule_mouse_poll (self);
+	else if (!output_enabled && self->mouse_poll_source_id != 0)
 	{
 		g_source_remove (self->mouse_poll_source_id);
 		self->mouse_poll_source_id = 0;

@@ -204,4 +204,4 @@ Acceptance:
 
 ## Immediate next step
 
-Implement Chunk 5: the dedicated libevdev/uinput cursor-output worker and its narrowly scoped host permission setup.
+Implement Chunk 7: finish end-to-end integration and produce a reproducible native Linux package while documenting the Flatpak device limitations.

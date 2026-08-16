@@ -26,6 +26,16 @@ display_logic_test = executable(
 
 test('OpenTrackIR display logic', display_logic_test)
 
+lifecycle_policy_test = executable(
+  'opentrackir-lifecycle-policy-test',
+  'test-lifecycle-policy.c',
+  '../src/opentrackir-lifecycle-policy.c',
+  include_directories: include_directories('../src'),
+  dependencies: dependency('glib-2.0'),
+)
+
+test('OpenTrackIR lifecycle policy', lifecycle_policy_test)
+
 uinput_policy_test = executable(
   'opentrackir-uinput-policy-test',
   'test-uinput-policy.c',

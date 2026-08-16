@@ -1,3 +1,7 @@
+#include "config.h"
+
+#include <glib/gi18n.h>
+
 #include "opentrackir-uinput-policy.h"
 
 #include <errno.h>
@@ -36,22 +40,22 @@ opentrackir_uinput_phase_message (OpentrackirUinputPhase phase)
 	switch (phase)
 	{
 	case OPENTRACKIR_UINPUT_PHASE_DISABLED:
-		return "Mouse movement is off.";
+		return _("Mouse movement is off.");
 	case OPENTRACKIR_UINPUT_PHASE_STARTING:
-		return "Creating the OpenTrackIR virtual pointer…";
+		return _("Creating the OpenTrackIR virtual pointer…");
 	case OPENTRACKIR_UINPUT_PHASE_READY:
-		return "Virtual pointer ready.";
+		return _("Virtual pointer ready.");
 	case OPENTRACKIR_UINPUT_PHASE_UNAVAILABLE:
-		return "/dev/uinput is unavailable. Load the uinput kernel module and try again.";
+		return _("/dev/uinput is unavailable. Load the uinput kernel module and try again.");
 	case OPENTRACKIR_UINPUT_PHASE_PERMISSION_DENIED:
-		return "Access to /dev/uinput was denied. Install the OpenTrackIR udev rule and reconnect or reboot.";
+		return _("Access to /dev/uinput was denied. Install the OpenTrackIR udev rule and reconnect or reboot.");
 	case OPENTRACKIR_UINPUT_PHASE_UNSUPPORTED:
-		return "This kernel does not support the required uinput interface.";
+		return _("This kernel does not support the required uinput interface.");
 	case OPENTRACKIR_UINPUT_PHASE_WRITE_FAILED:
-		return "Writing to the virtual pointer failed. Disable and re-enable mouse movement to retry.";
+		return _("Writing to the virtual pointer failed. Disable and re-enable mouse movement to retry.");
 	case OPENTRACKIR_UINPUT_PHASE_FAILED:
 	default:
-		return "The virtual pointer failed. Disable and re-enable mouse movement to retry.";
+		return _("The virtual pointer failed. Disable and re-enable mouse movement to retry.");
 	}
 }
 
@@ -116,6 +120,31 @@ opentrackir_build_mouse_tracker_config (double   control_speed,
 			.rotation_degrees = rotation_degrees,
 		},
 	};
+}
+
+gboolean
+opentrackir_keep_awake_should_run (gboolean camera_enabled,
+                                   gboolean mouse_movement_enabled,
+                                   guint    keep_awake_seconds)
+{
+	return camera_enabled && !mouse_movement_enabled && keep_awake_seconds > 0;
+}
+
+OpentrackirRelativeDelta
+opentrackir_keep_awake_delta (guint direction_index)
+{
+	switch (direction_index % 4)
+	{
+	case 0:
+		return (OpentrackirRelativeDelta) { 1, 0 };
+	case 1:
+		return (OpentrackirRelativeDelta) { -1, 0 };
+	case 2:
+		return (OpentrackirRelativeDelta) { 0, 1 };
+	case 3:
+	default:
+		return (OpentrackirRelativeDelta) { 0, -1 };
+	}
 }
 
 gsize

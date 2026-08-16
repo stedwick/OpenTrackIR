@@ -7,13 +7,15 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `meson.build`: Meson project definition, generated `config.h`, compiler warnings, and data/source/translation subdirectories.
 - `org.gnome.opentrackir.json`: GNOME Builder Flatpak manifest using the GNOME SDK and runtime.
 - `src/main.c`: gettext setup and `AdwApplication` entrypoint.
-- `src/opentrackir-application.c`: application activation, application actions, shortcuts, and about dialog.
+- `src/opentrackir-application.c`: application-owned settings/runtime, background holds, timeout/power policy, actions, shortcuts, and about dialog.
 - `src/opentrackir-session-controller.c`: shared-session ownership, bounded telemetry polling, and runtime camera configuration.
 - `src/opentrackir-session-state.c`: pure normalization of shared C session snapshots for the Linux UI.
 - `src/opentrackir-display-logic.c`: pure preview, timeout, and telemetry formatting policy.
+- `src/opentrackir-lifecycle-policy.c`: pure close, application-hold, tray visibility, and low-power policy.
 - `src/opentrackir-uinput-policy.c`: pure error mapping, fractional delta dispatch, event selection, and mouse configuration mapping.
 - `src/opentrackir-uinput-pointer.c`: Linux libevdev/uinput relative-pointer adapter.
 - `src/opentrackir-mouse-worker.c`: dedicated tracker and pointer-output worker, isolated from GTK.
+- `src/opentrackir-status-notifier.c`: optional standard D-Bus StatusNotifierItem integration without a GTK 3 dependency.
 - `src/opentrackir-window.c`: `AdwApplicationWindow` implementation and GTK template bindings.
 - `src/opentrackir-window.ui`: main window template and primary menu.
 - `src/shortcuts-dialog.ui`: keyboard-shortcut resource.
@@ -21,7 +23,7 @@ The `nix/` directory contains the native GNOME application for Linux. Treat it a
 - `data/`: desktop entry, AppStream metadata, GSettings schema, D-Bus service, and application icons.
 - `po/`: gettext source list and language catalog configuration.
 
-The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, and libevdev/uinput mouse output. TrackIR USB and uinput access use separate repository udev rules. Background/tray lifecycle is not connected yet. Some generated template metadata remains placeholder text.
+The host application links the shared C library and provides camera enablement, native grayscale preview, telemetry, persisted settings, advanced controls, libevdev/uinput mouse output, background operation, and optional StatusNotifierItem tray integration. TrackIR USB and uinput access use separate repository udev rules. Some generated template metadata remains placeholder text.
 
 ## Linux-specific rules
 

@@ -179,6 +179,18 @@
                         </child>
                       </object>
                     </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Run in Background</property>
+                        <property name="subtitle" translatable="yes">Keep OpenTrackIR available when its window is closed.</property>
+                        <property name="activatable-widget">background_switch</property>
+                        <child type="suffix">
+                          <object class="GtkSwitch" id="background_switch">
+                            <property name="valign">center</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
 
@@ -193,6 +205,11 @@
                     <child>
                       <object class="AdwActionRow" id="mouse_status_row">
                         <property name="title" translatable="yes">Mouse Output</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="background_status_row">
+                        <property name="title" translatable="yes">Background</property>
                       </object>
                     </child>
                     <child>
@@ -393,8 +410,18 @@
   <menu id="primary_menu">
     <section>
       <item>
+        <attribute name="label" translatable="yes">_Hide to Background</attribute>
+        <attribute name="action">app.hide</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
         <attribute name="label" translatable="yes">_About OpenTrackIR</attribute>
         <attribute name="action">app.about</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Quit</attribute>
+        <attribute name="action">app.quit</attribute>
       </item>
     </section>
   </menu>

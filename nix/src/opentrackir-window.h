@@ -22,10 +22,17 @@
 
 #include <adwaita.h>
 
+#include "opentrackir-session-controller.h"
+
 G_BEGIN_DECLS
 
 #define OPENTRACKIR_TYPE_WINDOW (opentrackir_window_get_type())
 
 G_DECLARE_FINAL_TYPE (OpentrackirWindow, opentrackir_window, OPENTRACKIR, WINDOW, AdwApplicationWindow)
+
+OpentrackirWindow *opentrackir_window_new                 (GtkApplication               *application,
+                                                           OpentrackirSessionController *controller,
+                                                           GSettings                    *settings);
+gboolean           opentrackir_window_is_visible_for_work (OpentrackirWindow            *self);
 
 G_END_DECLS

@@ -9,8 +9,9 @@
 
 #include <glib/gi18n.h>
 
+#include "opentrackir-application.h"
 #include "opentrackir-display-logic.h"
-#include "opentrackir-session-controller.h"
+#include "opentrackir-lifecycle-policy.h"
 #include "opentrackir-window.h"
 
 #define PREVIEW_POLL_INTERVAL_MILLISECONDS 34
@@ -24,6 +25,7 @@ struct _OpentrackirWindow
 	GtkSwitch *camera_switch;
 	GtkSwitch *video_switch;
 	GtkSwitch *mouse_switch;
+	GtkSwitch *background_switch;
 	GtkSwitch *avoid_jumps_switch;
 	GtkSwitch *horizontal_flip_switch;
 	GtkSwitch *vertical_flip_switch;
@@ -39,6 +41,7 @@ struct _OpentrackirWindow
 	GtkSpinButton *timeout_spin;
 	AdwActionRow *phase_row;
 	AdwActionRow *mouse_status_row;
+	AdwActionRow *background_status_row;
 	AdwActionRow *error_row;
 	AdwActionRow *frame_index_row;
 	AdwActionRow *frame_rate_row;
@@ -48,11 +51,18 @@ struct _OpentrackirWindow
 	OpentrackirSessionController *controller;
 	GSettings *settings;
 	guint preview_source_id;
-	guint timeout_source_id;
 	guint64 last_preview_generation;
 };
 
 G_DEFINE_FINAL_TYPE (OpentrackirWindow, opentrackir_window, ADW_TYPE_APPLICATION_WINDOW)
+
+enum
+{
+	WORK_VISIBILITY_CHANGED,
+	N_SIGNALS,
+};
+
+static guint signals[N_SIGNALS];
 
 static const char *
 phase_label (OpentrackirSessionPhase phase)
@@ -74,11 +84,10 @@ phase_label (OpentrackirSessionPhase phase)
 }
 
 static void update_preview_policy (OpentrackirWindow *self);
-static void update_timeout_policy (OpentrackirWindow *self);
-static void apply_mouse_configuration (OpentrackirWindow *self);
+static void update_background_status (OpentrackirWindow *self);
 
-static gboolean
-window_is_visible_for_preview (OpentrackirWindow *self)
+gboolean
+opentrackir_window_is_visible_for_work (OpentrackirWindow *self)
 {
 	GdkSurface *surface;
 	GdkToplevelState state;
@@ -180,7 +189,7 @@ update_preview_policy (OpentrackirWindow *self)
 	should_run = opentrackir_preview_should_run (
 		gtk_switch_get_active (self->camera_switch),
 		gtk_switch_get_active (self->video_switch),
-		window_is_visible_for_preview (self),
+		opentrackir_window_is_visible_for_work (self),
 		state->phase
 	);
 
@@ -234,9 +243,19 @@ update_mouse_state (OpentrackirWindow *self)
 	const OpentrackirUinputState *state;
 	g_autofree char *ready_message = NULL;
 	const char *message;
+	gboolean keep_awake_only;
 
 	state = opentrackir_session_controller_get_mouse_state (self->controller);
-	if (state->phase == OPENTRACKIR_UINPUT_PHASE_READY && state->event_frame_count > 0)
+	keep_awake_only = !g_settings_get_boolean (self->settings, "mouse-enabled") &&
+		g_settings_get_boolean (self->settings, "camera-enabled") &&
+		g_settings_get_int (self->settings, "keep-awake-seconds") > 0;
+	if (state->phase == OPENTRACKIR_UINPUT_PHASE_READY && keep_awake_only)
+	{
+		ready_message = g_strdup_printf (_("Keep-awake pointer ready · %" G_GUINT64_FORMAT " nudges"),
+		                                 state->event_frame_count);
+		message = ready_message;
+	}
+	else if (state->phase == OPENTRACKIR_UINPUT_PHASE_READY && state->event_frame_count > 0)
 	{
 		ready_message = g_strdup_printf (_("Virtual pointer ready · %" G_GUINT64_FORMAT " movement frames"),
 		                                 state->event_frame_count);
@@ -254,46 +273,16 @@ static void
 controller_state_changed (OpentrackirSessionController *controller,
                           OpentrackirWindow            *self)
 {
-	update_state (self);
+	if (opentrackir_window_is_visible_for_work (self))
+		update_state (self);
 }
 
 static void
 controller_mouse_state_changed (OpentrackirSessionController *controller,
                                 OpentrackirWindow            *self)
 {
-	update_mouse_state (self);
-}
-
-static void
-apply_mouse_configuration (OpentrackirWindow *self)
-{
-	otir_trackir_mouse_tracker_config config;
-
-	config = opentrackir_build_mouse_tracker_config (
-		g_settings_get_double (self->settings, "mouse-speed"),
-		(double)g_settings_get_int (self->settings, "mouse-smoothing"),
-		g_settings_get_double (self->settings, "mouse-dead-zone"),
-		g_settings_get_boolean (self->settings, "avoid-mouse-jumps"),
-		(double)g_settings_get_int (self->settings, "mouse-jump-threshold-pixels"),
-		g_settings_get_boolean (self->settings, "horizontal-flip"),
-		g_settings_get_boolean (self->settings, "vertical-flip"),
-		g_settings_get_double (self->settings, "rotation-degrees")
-	);
-	opentrackir_session_controller_set_mouse_config (
-		self->controller,
-		g_settings_get_boolean (self->settings, "mouse-enabled"),
-		config
-	);
-}
-
-static gboolean
-is_mouse_setting (const char *key)
-{
-	return g_str_has_prefix (key, "mouse-") ||
-	       g_str_equal (key, "avoid-mouse-jumps") ||
-	       g_str_equal (key, "horizontal-flip") ||
-	       g_str_equal (key, "vertical-flip") ||
-	       g_str_equal (key, "rotation-degrees");
+	if (opentrackir_window_is_visible_for_work (self))
+		update_mouse_state (self);
 }
 
 static void
@@ -301,41 +290,12 @@ settings_changed (GSettings          *settings,
                   const char         *key,
                   OpentrackirWindow  *self)
 {
-	if (is_mouse_setting (key))
-		apply_mouse_configuration (self);
-}
-
-static gboolean
-timeout_elapsed (gpointer user_data)
-{
-	OpentrackirWindow *self = user_data;
-
-	self->timeout_source_id = 0;
-	g_settings_set_boolean (self->settings, "camera-enabled", FALSE);
-	return G_SOURCE_REMOVE;
-}
-
-static void
-update_timeout_policy (OpentrackirWindow *self)
-{
-	guint timeout_seconds;
-
-	if (self->timeout_source_id != 0)
-	{
-		g_source_remove (self->timeout_source_id);
-		self->timeout_source_id = 0;
-	}
-
-	timeout_seconds = (guint)g_settings_get_int (self->settings, "timeout-seconds");
-	if (opentrackir_timeout_should_run (gtk_switch_get_active (self->camera_switch),
-	                                  gtk_switch_get_active (self->timeout_switch),
-	                                  timeout_seconds))
-	{
-		self->timeout_source_id =
-			g_timeout_add_seconds (timeout_seconds,
-			                       timeout_elapsed,
-			                       self);
-	}
+	if (g_str_equal (key, "background-enabled"))
+		update_background_status (self);
+	if (g_str_equal (key, "camera-enabled") ||
+	    g_str_equal (key, "mouse-enabled") ||
+	    g_str_equal (key, "keep-awake-seconds"))
+		update_mouse_state (self);
 }
 
 static void
@@ -343,12 +303,6 @@ camera_enabled_changed (GtkSwitch          *camera_switch,
                         GParamSpec         *pspec,
                         OpentrackirWindow  *self)
 {
-	if (gtk_switch_get_active (camera_switch))
-		opentrackir_session_controller_start (self->controller);
-	else
-		opentrackir_session_controller_stop (self->controller);
-
-	update_timeout_policy (self);
 	update_preview_policy (self);
 }
 
@@ -365,7 +319,17 @@ window_mapped_changed (OpentrackirWindow *self,
                        GParamSpec        *pspec,
                        gpointer           user_data)
 {
-	update_preview_policy (self);
+	if (opentrackir_window_is_visible_for_work (self))
+	{
+		update_state (self);
+		update_mouse_state (self);
+	}
+	else
+	{
+		update_preview_policy (self);
+	}
+	update_background_status (self);
+	g_signal_emit (self, signals[WORK_VISIBILITY_CHANGED], 0);
 }
 
 static void
@@ -374,6 +338,8 @@ toplevel_state_changed (GdkToplevel        *toplevel,
                         OpentrackirWindow  *self)
 {
 	update_preview_policy (self);
+	update_background_status (self);
+	g_signal_emit (self, signals[WORK_VISIBILITY_CHANGED], 0);
 }
 
 static void
@@ -390,35 +356,43 @@ window_realized (OpentrackirWindow *self)
 		                         0);
 	}
 	update_preview_policy (self);
+	update_background_status (self);
+	g_signal_emit (self, signals[WORK_VISIBILITY_CHANGED], 0);
 }
 
 static void
-camera_configuration_changed (GtkSpinButton     *spin_button,
-                              OpentrackirWindow *self)
+update_background_status (OpentrackirWindow *self)
 {
-	opentrackir_session_controller_set_tracking_frames_per_second (
-		self->controller,
-		gtk_spin_button_get_value (self->tracking_rate_spin)
-	);
-	opentrackir_session_controller_set_minimum_blob_area_points (
-		self->controller,
-		gtk_spin_button_get_value_as_int (self->minimum_blob_spin)
-	);
+	const char *message;
+	GtkApplication *application;
+	gboolean notifier_available = FALSE;
+
+	application = gtk_window_get_application (GTK_WINDOW (self));
+	if (OPENTRACKIR_IS_APPLICATION (application))
+	{
+		notifier_available =
+			opentrackir_application_status_notifier_is_available (
+				OPENTRACKIR_APPLICATION (application));
+	}
+
+	if (!g_settings_get_boolean (self->settings, "background-enabled"))
+		message = _("Off · closing the window quits OpenTrackIR.");
+	else if (!notifier_available)
+		message = _("On · no tray host detected; launch OpenTrackIR again to restore after hiding.");
+	else if (opentrackir_window_is_visible_for_work (self))
+		message = _("On · tray available; closing keeps tracking in the background.");
+	else
+		message = _("Running in the background · use the tray icon to restore.");
+
+	adw_action_row_set_subtitle (self->background_status_row, message);
 }
 
 static void
-timeout_setting_changed (GtkSwitch         *timeout_switch,
-                         GParamSpec        *pspec,
-                         OpentrackirWindow *self)
+status_notifier_availability_changed (OpentrackirApplication *application,
+                                      GParamSpec              *pspec,
+                                      OpentrackirWindow       *self)
 {
-	update_timeout_policy (self);
-}
-
-static void
-timeout_duration_changed (GtkSpinButton     *spin_button,
-                          OpentrackirWindow *self)
-{
-	update_timeout_policy (self);
+	update_background_status (self);
 }
 
 static void
@@ -443,6 +417,28 @@ bind_integer_spin (OpentrackirWindow *self,
 	                  self);
 }
 
+static gboolean
+opentrackir_window_close_request (GtkWindow *window)
+{
+	OpentrackirWindow *self = OPENTRACKIR_WINDOW (window);
+	OpentrackirLifecyclePolicy policy;
+	GtkApplication *application;
+
+	policy = opentrackir_lifecycle_policy (
+		g_settings_get_boolean (self->settings, "background-enabled"),
+		g_settings_get_boolean (self->settings, "camera-enabled"),
+		g_settings_get_boolean (self->settings, "mouse-enabled"),
+		opentrackir_window_is_visible_for_work (self)
+	);
+	if (policy.close_behavior != OPENTRACKIR_CLOSE_BEHAVIOR_HIDE)
+		return FALSE;
+
+	application = gtk_window_get_application (window);
+	if (application != NULL)
+		g_action_group_activate_action (G_ACTION_GROUP (application), "hide", NULL);
+	return TRUE;
+}
+
 static void
 opentrackir_window_dispose (GObject *object)
 {
@@ -453,12 +449,6 @@ opentrackir_window_dispose (GObject *object)
 		g_source_remove (self->preview_source_id);
 		self->preview_source_id = 0;
 	}
-	if (self->timeout_source_id != 0)
-	{
-		g_source_remove (self->timeout_source_id);
-		self->timeout_source_id = 0;
-	}
-
 	g_clear_object (&self->settings);
 	g_clear_object (&self->controller);
 
@@ -470,8 +460,21 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+	GtkWindowClass *window_class = GTK_WINDOW_CLASS (klass);
 
 	object_class->dispose = opentrackir_window_dispose;
+	window_class->close_request = opentrackir_window_close_request;
+
+	signals[WORK_VISIBILITY_CHANGED] =
+		g_signal_new ("work-visibility-changed",
+		              G_TYPE_FROM_CLASS (klass),
+		              G_SIGNAL_RUN_LAST,
+		              0,
+		              NULL,
+		              NULL,
+		              NULL,
+		              G_TYPE_NONE,
+		              0);
 
 	gtk_widget_class_set_template_from_resource (widget_class, "/org/gnome/opentrackir/opentrackir-window.ui");
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, preview_picture);
@@ -479,6 +482,7 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, camera_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, video_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_switch);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, background_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, avoid_jumps_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, horizontal_flip_switch);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, vertical_flip_switch);
@@ -494,6 +498,7 @@ opentrackir_window_class_init (OpentrackirWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, timeout_spin);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, phase_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, mouse_status_row);
+	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, background_status_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, error_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, frame_index_row);
 	gtk_widget_class_bind_template_child (widget_class, OpentrackirWindow, frame_rate_row);
@@ -505,13 +510,29 @@ static void
 opentrackir_window_init (OpentrackirWindow *self)
 {
 	gtk_widget_init_template (GTK_WIDGET (self));
+}
 
-	self->controller = opentrackir_session_controller_new ();
-	self->settings = g_settings_new ("org.gnome.opentrackir");
+OpentrackirWindow *
+opentrackir_window_new (GtkApplication               *application,
+                        OpentrackirSessionController *controller,
+                        GSettings                    *settings)
+{
+	OpentrackirWindow *self;
+
+	g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
+	g_return_val_if_fail (OPENTRACKIR_IS_SESSION_CONTROLLER (controller), NULL);
+	g_return_val_if_fail (G_IS_SETTINGS (settings), NULL);
+
+	self = g_object_new (OPENTRACKIR_TYPE_WINDOW,
+	                     "application", application,
+	                     NULL);
+	self->controller = g_object_ref (controller);
+	self->settings = g_object_ref (settings);
 
 	g_settings_bind (self->settings, "camera-enabled", self->camera_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "video-enabled", self->video_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "mouse-enabled", self->mouse_switch, "active", G_SETTINGS_BIND_DEFAULT);
+	g_settings_bind (self->settings, "background-enabled", self->background_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "avoid-mouse-jumps", self->avoid_jumps_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "horizontal-flip", self->horizontal_flip_switch, "active", G_SETTINGS_BIND_DEFAULT);
 	g_settings_bind (self->settings, "vertical-flip", self->vertical_flip_switch, "active", G_SETTINGS_BIND_DEFAULT);
@@ -537,10 +558,16 @@ opentrackir_window_init (OpentrackirWindow *self)
 	                         G_CALLBACK (controller_mouse_state_changed),
 	                         self,
 	                         0);
-	g_signal_connect (self->settings,
-	                  "changed",
-	                  G_CALLBACK (settings_changed),
-	                  self);
+	g_signal_connect_object (self->settings,
+	                         "changed",
+	                         G_CALLBACK (settings_changed),
+	                         self,
+	                         0);
+	g_signal_connect_object (application,
+	                         "notify::status-notifier-available",
+	                         G_CALLBACK (status_notifier_availability_changed),
+	                         self,
+	                         0);
 	g_signal_connect (self->camera_switch,
 	                  "notify::active",
 	                  G_CALLBACK (camera_enabled_changed),
@@ -557,41 +584,8 @@ opentrackir_window_init (OpentrackirWindow *self)
 	                          "realize",
 	                          G_CALLBACK (window_realized),
 	                          self);
-	g_signal_connect (self->tracking_rate_spin,
-	                  "value-changed",
-	                  G_CALLBACK (camera_configuration_changed),
-	                  self);
-	g_signal_connect (self->minimum_blob_spin,
-	                  "value-changed",
-	                  G_CALLBACK (camera_configuration_changed),
-	                  self);
-	g_signal_connect (self->timeout_switch,
-	                  "notify::active",
-	                  G_CALLBACK (timeout_setting_changed),
-	                  self);
-	g_signal_connect (self->timeout_spin,
-	                  "value-changed",
-	                  G_CALLBACK (timeout_duration_changed),
-	                  self);
-
-	opentrackir_session_controller_set_tracking_frames_per_second (
-		self->controller,
-		g_settings_get_double (self->settings, "tracking-frames-per-second")
-	);
-	opentrackir_session_controller_set_minimum_blob_area_points (
-		self->controller,
-		g_settings_get_int (self->settings, "minimum-blob-area-points")
-	);
-	opentrackir_session_controller_set_centroid_mode (
-		self->controller,
-		(otir_tir5v3_centroid_mode)g_settings_get_int (self->settings, "centroid-mode")
-	);
-	apply_mouse_configuration (self);
-
-	if (gtk_switch_get_active (self->camera_switch))
-		opentrackir_session_controller_start (self->controller);
-
-	update_timeout_policy (self);
 	update_state (self);
 	update_mouse_state (self);
+	update_background_status (self);
+	return self;
 }

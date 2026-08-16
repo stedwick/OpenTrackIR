@@ -54,6 +54,7 @@ endfunction()
 
 if(OPENTRACKIR_BUILD_TESTS)
   add_executable(test_tir5 tests/test_tir5.c)
+  target_include_directories(test_tir5 PRIVATE src)
   target_link_libraries(test_tir5 PRIVATE opentrackir)
   otir_copy_runtime_dlls(test_tir5)
   add_test(NAME test_tir5 COMMAND test_tir5)

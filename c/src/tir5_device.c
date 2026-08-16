@@ -15,6 +15,8 @@
 
 #include <libusb.h>
 
+#include "tir5_libusb_status.h"
+
 struct otir_tir5v3_device {
     bool ir_led_enabled;
     bool is_streaming;
@@ -37,7 +39,7 @@ static int random_range(otir_tir5v3_device *device, int low, int high);
 static void log_libusb_failure(const char *operation, int error_code);
 static void log_device_status(const char *message);
 static void log_parser_status(const char *message, size_t bytes_read);
-static otir_status map_libusb_error(int error_code);
+static otir_status open_matching_device(otir_tir5v3_device *device);
 static otir_status discover_endpoints(otir_tir5v3_device *device);
 static otir_status send_packet(
     otir_tir5v3_device *device,
@@ -68,6 +70,7 @@ otir_status otir_tir5v3_open(otir_tir5v3_device **out_device) {
     if (out_device == NULL) {
         return OTIR_STATUS_INVALID_ARGUMENT;
     }
+    *out_device = NULL;
 
     device = (otir_tir5v3_device *)calloc(1, sizeof(*device));
     if (device == NULL) {
@@ -78,22 +81,24 @@ otir_status otir_tir5v3_open(otir_tir5v3_device **out_device) {
     device->rng_state = (uint32_t)(monotonic_ms() ^ (uintptr_t)device);
     device->interface_number = 0;
 
-    if (libusb_init(&device->context) != 0) {
-        log_device_status("libusb_init failed");
-        free(device);
-        return OTIR_STATUS_IO;
+    {
+        const int init_result = libusb_init(&device->context);
+        if (init_result != 0) {
+            const otir_status status = otir_tir5v3_map_libusb_error(init_result);
+
+            log_libusb_failure("init", init_result);
+            free(device);
+            return status;
+        }
     }
 
-    device->handle = libusb_open_device_with_vid_pid(
-        device->context,
-        OTIR_TIR5V3_VENDOR_ID,
-        OTIR_TIR5V3_PRODUCT_ID
-    );
-    if (device->handle == NULL) {
-        log_device_status("TrackIR device not found during open");
-        libusb_exit(device->context);
-        free(device);
-        return OTIR_STATUS_NOT_FOUND;
+    {
+        const otir_status status = open_matching_device(device);
+        if (status != OTIR_STATUS_OK) {
+            libusb_exit(device->context);
+            free(device);
+            return status;
+        }
     }
 
     libusb_set_auto_detach_kernel_driver(device->handle, 1);
@@ -106,24 +111,75 @@ otir_status otir_tir5v3_open(otir_tir5v3_device **out_device) {
     {
         const int claim_result = libusb_claim_interface(device->handle, device->interface_number);
         if (claim_result != 0) {
+            const otir_status status = otir_tir5v3_map_libusb_error(claim_result);
+
             log_libusb_failure("claim_interface", claim_result);
             libusb_close(device->handle);
             libusb_exit(device->context);
             free(device);
-            return OTIR_STATUS_IO;
+            return status;
         }
     }
-    if (discover_endpoints(device) != OTIR_STATUS_OK) {
-        log_device_status("TrackIR endpoint discovery failed");
-        libusb_release_interface(device->handle, device->interface_number);
-        libusb_close(device->handle);
-        libusb_exit(device->context);
-        free(device);
-        return OTIR_STATUS_IO;
+    {
+        const otir_status endpoint_status = discover_endpoints(device);
+        if (endpoint_status != OTIR_STATUS_OK) {
+            log_device_status("TrackIR endpoint discovery failed");
+            libusb_release_interface(device->handle, device->interface_number);
+            libusb_close(device->handle);
+            libusb_exit(device->context);
+            free(device);
+            return endpoint_status;
+        }
     }
 
     *out_device = device;
     return OTIR_STATUS_OK;
+}
+
+static otir_status open_matching_device(otir_tir5v3_device *device) {
+    libusb_device **device_list = NULL;
+    otir_status matching_device_status = OTIR_STATUS_NOT_FOUND;
+    ssize_t device_count;
+    ssize_t device_index;
+
+    device_count = libusb_get_device_list(device->context, &device_list);
+    if (device_count < 0) {
+        log_libusb_failure("get_device_list", (int)device_count);
+        return otir_tir5v3_map_libusb_error((int)device_count);
+    }
+
+    for (device_index = 0; device_index < device_count; ++device_index) {
+        struct libusb_device_descriptor descriptor;
+        int descriptor_result;
+        int open_result;
+
+        descriptor_result = libusb_get_device_descriptor(device_list[device_index], &descriptor);
+        if (descriptor_result != 0) {
+            log_libusb_failure("get_device_descriptor", descriptor_result);
+            continue;
+        }
+        if (descriptor.idVendor != OTIR_TIR5V3_VENDOR_ID ||
+            descriptor.idProduct != OTIR_TIR5V3_PRODUCT_ID) {
+            continue;
+        }
+
+        open_result = libusb_open(device_list[device_index], &device->handle);
+        if (open_result == 0 && device->handle != NULL) {
+            matching_device_status = OTIR_STATUS_OK;
+            break;
+        }
+
+        log_libusb_failure("open", open_result);
+        if (matching_device_status != OTIR_STATUS_PERMISSION_DENIED) {
+            matching_device_status = otir_tir5v3_map_libusb_error(open_result);
+        }
+    }
+
+    libusb_free_device_list(device_list, 1);
+    if (matching_device_status == OTIR_STATUS_NOT_FOUND) {
+        log_device_status("TrackIR device not found during open");
+    }
+    return matching_device_status;
 }
 
 void otir_tir5v3_close(otir_tir5v3_device *device) {
@@ -394,7 +450,7 @@ otir_status otir_tir5v3_read_chunk(
         return OTIR_STATUS_OK;
     }
     if (rc != 0) {
-        return map_libusb_error(rc);
+        return otir_tir5v3_map_libusb_error(rc);
     }
 
     *bytes_read = (size_t)transferred;
@@ -529,17 +585,6 @@ static int random_range(otir_tir5v3_device *device, int low, int high) {
     return low + (int)(random_next(device) % span);
 }
 
-static otir_status map_libusb_error(int error_code) {
-    switch (error_code) {
-        case LIBUSB_ERROR_TIMEOUT:
-            return OTIR_STATUS_TIMEOUT;
-        case LIBUSB_ERROR_NO_DEVICE:
-            return OTIR_STATUS_NOT_FOUND;
-        default:
-            return OTIR_STATUS_IO;
-    }
-}
-
 static otir_status discover_endpoints(otir_tir5v3_device *device) {
     libusb_device *usb_device;
     struct libusb_config_descriptor *config = NULL;
@@ -547,8 +592,11 @@ static otir_status discover_endpoints(otir_tir5v3_device *device) {
     int endpoint_index;
 
     usb_device = libusb_get_device(device->handle);
-    if (libusb_get_active_config_descriptor(usb_device, &config) != 0 || config == NULL) {
-        return OTIR_STATUS_IO;
+    {
+        const int config_result = libusb_get_active_config_descriptor(usb_device, &config);
+        if (config_result != 0 || config == NULL) {
+            return otir_tir5v3_map_libusb_error(config_result);
+        }
     }
 
     interface_desc = &config->interface[device->interface_number].altsetting[0];
@@ -596,7 +644,7 @@ static otir_status send_packet(
         1000
     );
     if (rc != 0 || transferred != (int)sizeof(encoded)) {
-        return map_libusb_error(rc);
+        return otir_tir5v3_map_libusb_error(rc);
     }
     if (wait_us > 0) {
         sleep_us(wait_us);

@@ -33,7 +33,8 @@ typedef enum otir_status {
     OTIR_STATUS_NOT_OPEN = -7,
     OTIR_STATUS_NOT_FOUND = -8,
     OTIR_STATUS_DEPENDENCY_UNAVAILABLE = -9,
-    OTIR_STATUS_UNSUPPORTED = -10
+    OTIR_STATUS_UNSUPPORTED = -10,
+    OTIR_STATUS_PERMISSION_DENIED = -11
 } otir_status;
 
 typedef struct otir_tir5v3_status {

@@ -754,6 +754,14 @@ static void trackir_session_format_failure_message(
         );
         return;
     }
+    if (status == OTIR_STATUS_PERMISSION_DENIED) {
+        trackir_copy_string(
+            buffer,
+            capacity,
+            "TrackIR access denied. Install the OpenTrackIR udev rule, reconnect the device, and try again."
+        );
+        return;
+    }
 
     status_description = otir_status_string(status);
     if (operation == NULL || operation[0] == '\0') {

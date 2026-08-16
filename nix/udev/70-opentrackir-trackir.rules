@@ -1,0 +1,2 @@
+# NaturalPoint TrackIR 5 v3; grant the active local session access through logind.
+SUBSYSTEM=="usb", ATTR{idVendor}=="131d", ATTR{idProduct}=="0159", TAG+="uaccess"

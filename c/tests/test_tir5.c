@@ -2,6 +2,7 @@
 #include "opentrackir/tir5_mouse.h"
 #include "opentrackir/tir5_session.h"
 #include "opentrackir/tir5_tooling.h"
+#include "tir5_libusb_status.h"
 
 #include <assert.h>
 #include <math.h>
@@ -20,6 +21,7 @@ static void encode_tir5v3_stripe(
 );
 
 static void test_apply_transport_obfuscates_header_and_nonce(void);
+static void test_libusb_errors_map_to_actionable_statuses(void);
 static void test_parse_status_reads_stage_fields(void);
 static void test_stream_parser_recovers_split_packets(void);
 static void test_stream_parser_resyncs_after_bad_leading_header(void);
@@ -53,6 +55,7 @@ static void test_cli_read_maximum_frames_per_second_accepts_optional_argument(vo
 
 int main(void) {
     test_apply_transport_obfuscates_header_and_nonce();
+    test_libusb_errors_map_to_actionable_statuses();
     test_parse_status_reads_stage_fields();
     test_stream_parser_recovers_split_packets();
     test_stream_parser_resyncs_after_bad_leading_header();
@@ -85,6 +88,15 @@ int main(void) {
     test_cli_read_maximum_frames_per_second_accepts_optional_argument();
     puts("c/tests/test_tir5: all tests passed");
     return 0;
+}
+
+static void test_libusb_errors_map_to_actionable_statuses(void) {
+    assert(otir_tir5v3_map_libusb_error(LIBUSB_ERROR_TIMEOUT) == OTIR_STATUS_TIMEOUT);
+    assert(otir_tir5v3_map_libusb_error(LIBUSB_ERROR_ACCESS) == OTIR_STATUS_PERMISSION_DENIED);
+    assert(otir_tir5v3_map_libusb_error(LIBUSB_ERROR_NOT_FOUND) == OTIR_STATUS_NOT_FOUND);
+    assert(otir_tir5v3_map_libusb_error(LIBUSB_ERROR_NO_DEVICE) == OTIR_STATUS_NOT_FOUND);
+    assert(otir_tir5v3_map_libusb_error(LIBUSB_ERROR_IO) == OTIR_STATUS_IO);
+    assert(strcmp(otir_status_string(OTIR_STATUS_PERMISSION_DENIED), "permission_denied") == 0);
 }
 
 static void make_type5_packet(uint8_t packet_no, const uint8_t *payload, size_t payload_size, uint8_t *out_packet, size_t *out_length) {

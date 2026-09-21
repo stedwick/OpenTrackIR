@@ -158,6 +158,7 @@ struct ContentViewTests {
     }
 
     @Test func mouseSpeedValueLabelUsesCompactMultiplierText() {
+        #expect(mouseSpeedValueLabel(for: 0.2) == "0.2x")
         #expect(mouseSpeedValueLabel(for: 1.0) == "1x")
         #expect(mouseSpeedValueLabel(for: 2.2) == "2.2x")
         #expect(mouseSpeedValueLabel(for: 5.0) == "5x")
@@ -165,9 +166,12 @@ struct ContentViewTests {
 
     @Test func mouseSpeedControlValueMapsToBackendScale() {
         #expect(normalizedMouseMovementControlSpeed(2.0) == 2.0)
-        #expect(normalizedMouseMovementControlSpeed(0.5) == 1.0)
+        #expect(normalizedMouseMovementControlSpeed(0.5) == 0.5)
+        #expect(normalizedMouseMovementControlSpeed(0.2) == 0.2)
+        #expect(normalizedMouseMovementControlSpeed(0.0) == 0.2)
         #expect(normalizedMouseMovementControlSpeed(7.0) == 5.0)
         #expect(trackIRMouseBackendSpeed(controlSpeed: 2.0) == 20.0)
+        #expect(trackIRMouseBackendSpeed(controlSpeed: 0.2) == 2.0)
         #expect(trackIRMouseBackendSpeed(controlSpeed: 20.0) == 50.0)
     }
 

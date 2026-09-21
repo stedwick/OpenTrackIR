@@ -471,10 +471,10 @@ struct ContentView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Slider(value: mouseMovementSpeedBinding, in: 1.0 ... 5.0, step: 0.2)
+                    Slider(value: mouseMovementSpeedBinding, in: 0.2 ... 5.0, step: 0.2)
 
                     HStack {
-                        Text("1x")
+                        Text("0.2x")
                         Spacer()
                         Text("5x")
                     }
@@ -1187,7 +1187,7 @@ func mouseDeadzoneValueLabel(for deadzone: Double) -> String {
 }
 
 func normalizedMouseMovementControlSpeed(_ storedSpeed: Double) -> Double {
-    min(max(storedSpeed, 1.0), 5.0)
+    min(max(storedSpeed, 0.2), 5.0)
 }
 
 func normalizedMouseSmoothing(_ smoothing: Double) -> Int {

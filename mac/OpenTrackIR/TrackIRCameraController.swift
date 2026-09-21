@@ -400,7 +400,20 @@ final class TrackIRCameraController: ObservableObject {
     ) {
         pollTask?.cancel()
 
-        pollTask = Task.detached(priority: .utility) { [weak self] in
+        pollTask = Task.detached(priority: .userInitiated) { [weak self] in
+            // Head-controlled mouse input must continue when the window is hidden.
+            let trackingActivity = configuration.isMouseMovementEnabled
+                ? ProcessInfo.processInfo.beginActivity(
+                    options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                    reason: "TrackIR mouse tracking"
+                )
+                : nil
+            defer {
+                if let trackingActivity {
+                    ProcessInfo.processInfo.endActivity(trackingActivity)
+                }
+            }
+
             let lowPowerIdleDelay: TimeInterval = 60
             var lastPreviewFrameGeneration: UInt64 = 0
             var lastPreviewUpdateTime: TimeInterval?
